@@ -1,4 +1,4 @@
-import os, sys, subprocess, pathlib
+import os, subprocess, pathlib
 from setuptools import setup
 from setuptools.command.build_py import build_py as _build_py
 
@@ -8,17 +8,25 @@ PKG_BIN_DIR = ROOT / "src" / "auto_commit" / "bin"
 
 
 class build_py(_build_py):
+    def run(self):
+        self._build_go_binary()
+        super().run()
+
     def _build_go_binary(self):
         PKG_BIN_DIR.mkdir(parents=True, exist_ok=True)
         exe = "ai_commit.exe" if os.name == "nt" else "ai_commit"
         out = PKG_BIN_DIR / exe
+        # ensure Go modules on
+        env = os.environ.copy()
+        env.setdefault("GO111MODULE", "on")
         subprocess.run(
             ["go", "build", "-o", str(out), "./cmd/auto_commit"],
-            cwd=GO_CLI_DIR,
+            cwd=str(GO_CLI_DIR),
             check=True,
+            env=env,
         )
         if os.name != "nt":
-            out.chmod(0o755)
+            os.chmod(out, 0o755)
 
 
 setup(cmdclass={"build_py": build_py})

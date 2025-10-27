@@ -1,3 +1,4 @@
 include README.md
 recursive-include src/auto_commit *.py
 recursive-include gocli *.go go.mod
+recursive-include src/auto_commit/bin *
