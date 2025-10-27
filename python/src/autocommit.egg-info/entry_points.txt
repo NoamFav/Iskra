@@ -1,2 +1,2 @@
 [console_scripts]
-ai_commit = autocommit.ai_commit:main
+ai_commit = auto_commit.ai_commit:main
