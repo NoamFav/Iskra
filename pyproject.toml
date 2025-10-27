@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autocommit"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = ["rich", "argcomplete"]
+
+[project.scripts]
+autocommit = "auto_commit.auto_commit:main"
+pull-repos = "auto_commit.pull_repos:main"
+
+[tool.setuptools]
+package-dir = {"" = "python/src"}
+packages = ["auto_commit"]

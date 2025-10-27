@@ -1,0 +1,15 @@
+# Go
+bin/
+dist/
+*.exe
+*.out
+
+# Python
+__pycache__/
+*.egg-info/
+.venv/
+.env
+.python-version
+python/build/
+python/dist/
+python/*.egg-info/

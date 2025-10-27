@@ -1,2 +1,3 @@
 [console_scripts]
-autocommit = autocommit.cli:main
+autocommit = auto_commit.auto_commit:main
+pull-repos = auto_commit.pull_repos:main
