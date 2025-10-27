@@ -1,2 +1,4 @@
 [console_scripts]
 ai_commit = auto_commit.ai_commit:main
+autocommit = auto_commit.auto_commit:main
+pull_repos = auto_commit.pull_repos:main
