@@ -1,0 +1,2 @@
+include README.md
+recursive-include ../cmd/auto_commit *.go

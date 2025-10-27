@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autocommit"
+version = "0.1.0"
+description = "Auto commit tool with bundled Go binary"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "You" }]
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["autocommit"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+autocommit = ["bin/*"]  # include built binary
+
+[project.scripts]
+ai_commit = "autocommit.ai_commit:main"   # exposes the shim as a command
