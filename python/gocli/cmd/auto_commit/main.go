@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/NoamFav/autocommit/internal/git"
-	"github.com/NoamFav/autocommit/internal/llm"
+	"autocommit_gocli/internal/git"
+	"autocommit_gocli/internal/llm"
 )
 
 func firstLine(s string) string {

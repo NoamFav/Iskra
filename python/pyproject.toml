@@ -17,7 +17,7 @@ packages = ["auto_commit"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-auto_commit = ["bin/*"]            # include built binary in the wheel
+auto_commit = ["bin/*"]
 
 [project.scripts]
 ai_commit = "auto_commit.ai_commit:main"   # installed console script

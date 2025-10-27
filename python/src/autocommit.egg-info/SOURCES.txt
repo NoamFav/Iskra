@@ -2,7 +2,10 @@ MANIFEST.in
 README.md
 pyproject.toml
 setup.py
-../cmd/auto_commit/main.go
+gocli/go.mod
+gocli/cmd/auto_commit/main.go
+gocli/internal/git/git_info.go
+gocli/internal/llm/ollama.go
 src/auto_commit/__init__.py
 src/auto_commit/ai_commit.py
 src/auto_commit/auto_commit.py
