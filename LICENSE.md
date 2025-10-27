@@ -1,6 +1,6 @@
 # Proprietary Software License Agreement
 
-**autocommit** - Git Automation Toolkit  
+**autocommit** - Git Automation Toolkit
 Copyright © 2025 Noam F. All Rights Reserved.
 
 ## License Grant
@@ -30,16 +30,19 @@ You may NOT:
 ## License Types
 
 ### Single User License
+
 - Valid for one (1) individual user
 - May be installed on up to three (3) devices owned by the licensee
 - Non-transferable
 
 ### Team License
+
 - Valid for a specified number of users within a single organization
 - May be installed on devices owned or controlled by the licensed organization
 - Transferable only within the licensed organization
 
 ### Enterprise License
+
 - Valid for unlimited users within a single organization
 - May be installed on devices owned or controlled by the licensed organization
 - Includes priority support and custom integration options
@@ -60,13 +63,17 @@ The Software contains proprietary and confidential information. You agree to:
 ## Term and Termination
 
 ### Term
-This license is effective until terminated. 
+
+This license is effective until terminated.
 
 ### Termination
+
 This license will terminate automatically if you fail to comply with any term or condition of this Agreement. You may also terminate this license at any time by destroying all copies of the Software in your possession.
 
 ### Upon Termination
+
 You must:
+
 1. Cease all use of the Software immediately
 2. Destroy all copies of the Software in any form
 3. Provide written certification of compliance within thirty (30) days
@@ -74,12 +81,15 @@ You must:
 ## Fees and Payment
 
 ### License Fees
+
 License fees are determined based on the license type and duration. All fees are:
+
 - Non-refundable except as required by applicable law
 - Exclusive of all taxes, which are your responsibility
 - Subject to change with thirty (30) days notice for renewal periods
 
 ### Payment Terms
+
 - Payment is due in full prior to license activation
 - Subscription licenses require payment prior to each renewal period
 - Failure to pay within thirty (30) days results in license suspension
@@ -87,11 +97,13 @@ License fees are determined based on the license type and duration. All fees are
 ## Updates and Support
 
 ### Software Updates
+
 - Minor updates and bug fixes are included during the license term
 - Major version upgrades may require additional license fees
 - Updates are provided "as available" with no guaranteed schedule
 
 ### Technical Support
+
 - Basic email support is included with all licenses
 - Response time: 5 business days for standard licenses
 - Priority support available for Enterprise licenses
@@ -102,6 +114,7 @@ License fees are determined based on the license type and duration. All fees are
 **THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.**
 
 The licensor does not warrant that:
+
 - The Software will meet your requirements
 - Operation of the Software will be uninterrupted or error-free
 - All defects will be corrected
@@ -110,6 +123,7 @@ The licensor does not warrant that:
 ## Limitation of Liability
 
 **IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR EXEMPLARY DAMAGES, INCLUDING BUT NOT LIMITED TO:**
+
 - Loss of profits or revenue
 - Loss of data or use
 - Cost of substitute software
@@ -137,11 +151,12 @@ The Software may include third-party open source components, each subject to its
 
 ## Governing Law
 
-This Agreement shall be governed by and construed in accordance with the laws of [Your Jurisdiction], without regard to its conflict of law provisions.
+This Agreement shall be governed by and construed in accordance with the European laws, without regard to its conflict of law provisions.
 
 ## Dispute Resolution
 
 Any disputes arising from this Agreement shall be resolved through:
+
 1. Good faith negotiation between the parties
 2. Binding arbitration if negotiation fails
 3. Litigation only as a last resort
@@ -149,28 +164,33 @@ Any disputes arising from this Agreement shall be resolved through:
 ## General Provisions
 
 ### Entire Agreement
+
 This Agreement constitutes the entire agreement between you and the licensor regarding the Software and supersedes all prior agreements.
 
 ### Severability
+
 If any provision of this Agreement is found to be unenforceable, the remainder shall continue in full force and effect.
 
 ### Waiver
+
 Failure to enforce any provision of this Agreement does not constitute a waiver of future enforcement.
 
 ### Assignment
+
 You may not assign or transfer this license without prior written consent from the licensor.
 
 ### Amendments
+
 This Agreement may only be modified by written amendment signed by both parties or through updated terms provided with new versions of the Software.
 
 ## Contact Information
 
-**For licensing inquiries:**  
-Email: [your-email@example.com]  
-Website: [your-website.com]
+**For licensing inquiries:**
+Email: [contact@nf-software.com]
+Website: [nf-software.com]
 
-**For technical support:**  
-Email: [support@example.com]  
+**For technical support:**
+Email: [support@nf-software.com]
 Documentation: [docs-url]
 
 ---
@@ -181,5 +201,5 @@ Documentation: [docs-url]
 
 ---
 
-*Last Updated: October 27, 2025*  
-*Version: 1.0*
+_Last Updated: October 27, 2025_
+_Version: 1.0_
