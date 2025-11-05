@@ -10,6 +10,7 @@ src/auto_commit/__init__.py
 src/auto_commit/ai_commit.py
 src/auto_commit/auto_commit.py
 src/auto_commit/pull_repos.py
+src/auto_commit/bin/ai_commit
 src/autocommit.egg-info/PKG-INFO
 src/autocommit.egg-info/SOURCES.txt
 src/autocommit.egg-info/dependency_links.txt

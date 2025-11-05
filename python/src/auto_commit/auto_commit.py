@@ -12,6 +12,7 @@ from datetime import datetime
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+import fnmatch
 
 from rich.tree import Tree
 
@@ -216,20 +217,45 @@ def generate_commit_message():
     return f"{random.choice(prefixes)} {random.choice(areas)} {random.choice(details)}"
 
 
+def _match_any(path_rel: str, patterns) -> bool:
+    """Match against full relative path, repo basename, and bucket."""
+    if not patterns:
+        return False
+    norm = path_rel.replace(os.sep, "/")
+    base = os.path.basename(norm)
+    bucket = norm.split("/", 1)[0] if "/" in norm else norm
+    for pat in patterns:
+        if (
+            fnmatch.fnmatch(norm, pat)
+            or fnmatch.fnmatch(base, pat)
+            or fnmatch.fnmatch(bucket, pat)
+        ):
+            return True
+    return False
+
+
 def find_git_repos(
-    base_dir: str, only=None, exclude=None, max_depth: int = 3, followlinks: bool = True
+    base_dir: str,
+    only=None,
+    exclude=None,
+    max_depth: int = 4,
+    followlinks: bool = True,
 ):
     """
     Recursively find git repos under base_dir up to max_depth.
-    - only/exclude apply to the first path component under base_dir (bucket names).
     - Prunes heavy dirs for speed.
     - Stops descending once a .git is found.
-    Returns absolute repository paths.
+    - Filters with glob patterns:
+        * --only PAT ...  (keep if any pattern matches)
+        * --exclude PAT ... (drop if any pattern matches)
+      Patterns apply to: relative path (e.g. '00-apps/Zvezda'),
+      repo basename (e.g. 'Zvezda'), and bucket (e.g. '00-apps').
     """
     base_dir = os.path.expanduser(base_dir)
-    only = set(only or [])
-    exclude = set(exclude or [])
-    repos = []
+    only = list(only or [])
+    exclude = list(exclude or [])
+    repos_abs = []
+    repos_rel = []
 
     for root, dirs, _ in os.walk(base_dir, followlinks=followlinks):
         rel = os.path.relpath(root, base_dir)
@@ -243,21 +269,23 @@ def find_git_repos(
             dirs[:] = []
             continue
 
-        # apply include/exclude on first component (bucket)
-        first = "" if rel == "." else rel.split(os.sep, 1)[0]
-        if first in exclude:
-            dirs[:] = []
-            continue
-        if only and first and first not in only:
-            # don't prune entirely; we may still hit a selected bucket elsewhere
-            pass
-
         if ".git" in dirs:
-            repos.append(root)
-            # don't descend inside a repo
-            dirs[:] = []
+            repos_abs.append(root)
+            repos_rel.append(rel if rel != "." else os.path.basename(root))
+            dirs[:] = []  # don't descend inside a repo
 
-    return sorted(repos)
+    # apply filters
+    filtered = []
+    for abs_path, rel_path in zip(repos_abs, repos_rel):
+        # include filter
+        if only and not _match_any(rel_path, only):
+            continue
+        # exclude filter
+        if exclude and _match_any(rel_path, exclude):
+            continue
+        filtered.append(abs_path)
+
+    return sorted(filtered)
 
 
 def process_repository(
