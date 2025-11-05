@@ -8,6 +8,7 @@ import json
 import time
 from datetime import datetime
 import shutil
+import fnmatch
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -22,35 +23,49 @@ install_traceback(show_locals=True)
 # Initialize Rich console
 console = Console()
 
+HEAVY_DIRS = {
+    "node_modules",
+    "dist",
+    "build",
+    "target",
+    "__pycache__",
+    ".tox",
+    ".mypy_cache",
+    ".idea",
+    ".vscode",
+    ".venv",
+    "venv",
+}
+
 # Icon mapping (using emoji for universal compatibility)
 ICONS = {
-    "git": "",  # nf-dev-git
-    "folder": "",  # nf-fa-folder
-    "success": "",  # nf-fa-check_circle
-    "error": "",  # nf-fa-times_circle
-    "info": "",  # nf-fa-info_circle
-    "warning": "",  # nf-fa-warning
-    "exclude": "",  # nf-oct-file_submodule (used as "ignore/exclude")
-    "clone": "",  # nf-oct-cloud_download (close to clone)
+    "git": "",  # nf-dev-git
+    "folder": "",  # nf-fa-folder
+    "success": "",  # nf-fa-check_circle
+    "error": "",  # nf-fa-times_circle
+    "info": "",  # nf-fa-info_circle
+    "warning": "",  # nf-fa-warning
+    "exclude": "",  # nf-oct-file_submodule (used as "ignore/exclude")
+    "clone": "",  # nf-oct-cloud_download (close to clone)
     "separator": "─",  # plain separator, fits aesthetic
     "dot": "•",  # minimalist bullet
-    "file": "",  # nf-md-file
-    "clock": "",  # nf-fa-clock_o
-    "calendar": "",  # nf-fa-calendar
-    "project": "",  # nf-fa-book (good for code/project repo)
-    "check": "",  # nf-fa-check
-    "rocket": "",  # nf-fa-rocket
-    "sparkles": "",  # nf-oct-sparkle (stylish)
-    "star": "",  # nf-fa-star
-    "github": "",  # nf-fa-github
-    "fork": "",  # nf-fa-code_fork
-    "user": "",  # nf-fa-user
-    "globe": "",  # nf-fa-globe
-    "code": "",  # nf-fa-code
-    "lock": "",  # nf-fa-lock
-    "unlock": "",  # nf-fa-unlock
-    "public": "",  # same as unlock
-    "private": "",  # same as lock
+    "file": "",  # nf-md-file
+    "clock": "",  # nf-fa-clock_o
+    "calendar": "",  # nf-fa-calendar
+    "project": "",  # nf-fa-book (good for code/project repo)
+    "check": "",  # nf-fa-check
+    "rocket": "",  # nf-fa-rocket
+    "sparkles": "",  # nf-oct-sparkle (stylish)
+    "star": "",  # nf-fa-star
+    "github": "",  # nf-fa-github
+    "fork": "",  # nf-fa-code_fork
+    "user": "",  # nf-fa-user
+    "globe": "",  # nf-fa-globe
+    "code": "",  # nf-fa-code
+    "lock": "",  # nf-fa-lock
+    "unlock": "",  # nf-fa-unlock
+    "public": "",  # same as unlock
+    "private": "",  # same as lock
 }
 
 
@@ -77,13 +92,17 @@ def print_header(text):
     console.print()
 
 
-def print_subheader(text, icon="folder"):
-    """Print a fancy subheader."""
-    console.print(f"\n[bold yellow]{get_icon(icon)} {text} {get_icon(icon)}")
-    console.print(f"[yellow]{get_icon('separator') * (len(text) + 6)}")
+def _match_any(repo_name: str, patterns) -> bool:
+    """Match repository name against glob patterns."""
+    if not patterns:
+        return False
+    for pat in patterns:
+        if fnmatch.fnmatch(repo_name, pat):
+            return True
+    return False
 
 
-def get_github_repos(limit=1000, _=True):
+def get_github_repos(limit=1000, filter_forks=False, only_stars=0, exclude=None):
     """Get list of repositories from GitHub CLI with detailed information"""
     try:
         # Define fields to extract
@@ -115,6 +134,23 @@ def get_github_repos(limit=1000, _=True):
 
         # Parse JSON output
         repos = json.loads(result.stdout.strip())
+
+        # Apply filters
+        if filter_forks:
+            repos = [repo for repo in repos if not repo.get("isFork", False)]
+
+        if only_stars > 0:
+            repos = [
+                repo
+                for repo in repos
+                if repo.get("stargazerCount", 0) >= only_stars
+            ]
+
+        if exclude:
+            repos = [
+                repo for repo in repos
+                if not _match_any(repo["nameWithOwner"], exclude)
+            ]
 
         console.print(
             f"[bold green]{get_icon('success')} Found {len(repos)} repositories."
@@ -174,7 +210,7 @@ def process_repository(repo_info, base_dir, total, current):
             with console.status(
                 f"[bold blue]Cloning {repo_name}...[/]", spinner="dots"
             ):
-                _ = subprocess.run(
+                subprocess.run(
                     ["gh", "repo", "clone", repo_name],
                     cwd=base_dir,
                     check=True,
@@ -282,10 +318,12 @@ def main():
         type=str,
         nargs="+",
         default=[],
-        help="List of repository names to exclude.",
+        help="List of repository name patterns to exclude (supports glob patterns).",
     )
 
     args = parser.parse_args()
+    argcomplete.autocomplete(parser)
+    
     base_dir = args.base_dir
 
     # Print the header
@@ -310,7 +348,7 @@ def main():
     config_table.add_row("Minimum Stars", str(args.only_stars))
 
     if args.exclude:
-        config_table.add_row("Excluded Repos", ", ".join(args.exclude))
+        config_table.add_row("Excluded Patterns", ", ".join(args.exclude))
 
     console.print(config_table)
 
@@ -321,24 +359,13 @@ def main():
             f"[cyan]{get_icon('folder')} Created base directory at {base_dir}"
         )
 
-    # Get repositories from GitHub
-    repositories = get_github_repos(limit=args.limit)
-
-    # Apply filters
-    if args.filter_forks:
-        repositories = [repo for repo in repositories if not repo.get("isFork", False)]
-
-    if args.only_stars > 0:
-        repositories = [
-            repo
-            for repo in repositories
-            if repo.get("stargazerCount", 0) >= args.only_stars
-        ]
-
-    if args.exclude:
-        repositories = [
-            repo for repo in repositories if repo["nameWithOwner"] not in args.exclude
-        ]
+    # Get repositories from GitHub (with filters applied)
+    repositories = get_github_repos(
+        limit=args.limit,
+        filter_forks=args.filter_forks,
+        only_stars=args.only_stars,
+        exclude=args.exclude,
+    )
 
     # Show summary
     summary_panel = Panel(
@@ -348,7 +375,6 @@ def main():
         border_style="blue",
     )
     console.print(summary_panel)
-    argcomplete.autocomplete(parser)
 
     # Process repositories
     if repositories:
@@ -362,7 +388,7 @@ def main():
         # Final summary
         console.print()
         final_panel = Panel(
-            f"{get_icon('sparkles')} [bold]{'All' if success_count == len(repositories) else success_count}/{len(repositories)}[/] repositories processed successfully {get_icon('sparkles')}",
+            f"{get_icon('sparkles')} [bold]{success_count}/{len(repositories)}[/] repositories processed successfully {get_icon('sparkles')}",
             border_style="green" if success_count == len(repositories) else "yellow",
             title="Processing Complete",
             title_align="center",
