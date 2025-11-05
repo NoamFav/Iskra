@@ -168,11 +168,32 @@ def get_github_repos(limit=1000, filter_forks=False, only_stars=0, exclude=None)
         return []
 
 
+def find_repo_in_subdirs(base_dir, repo_short_name):
+    """
+    Search for a repository in base_dir and its subdirectories.
+    Returns the path if found, None otherwise.
+    """
+    # Check directly in base_dir
+    direct_path = os.path.join(base_dir, repo_short_name)
+    if os.path.isdir(direct_path):
+        return direct_path
+    
+    # Search in subdirectories (one level deep)
+    for entry in os.listdir(base_dir):
+        subdir_path = os.path.join(base_dir, entry)
+        if os.path.isdir(subdir_path) and entry not in HEAVY_DIRS:
+            repo_path = os.path.join(subdir_path, repo_short_name)
+            if os.path.isdir(repo_path):
+                return repo_path
+    
+    return None
+
+
 def process_repository(repo_info, base_dir, total, current):
     """Clone a repository with visual enhancements"""
     # Extract repository information
     repo_name = repo_info["nameWithOwner"]
-    repo_dir = os.path.join(base_dir, repo_name.split("/")[-1])
+    repo_short_name = repo_name.split("/")[-1]
 
     # Create a panel for repository info
     is_private = repo_info.get("isPrivate", False)
@@ -200,9 +221,13 @@ def process_repository(repo_info, base_dir, total, current):
 
     start_time = time.time()
 
-    if os.path.isdir(repo_dir):
+    # Check if repository exists anywhere in base_dir or subdirectories
+    existing_repo_path = find_repo_in_subdirs(base_dir, repo_short_name)
+    
+    if existing_repo_path:
+        rel_path = os.path.relpath(existing_repo_path, base_dir)
         console.print(
-            f"[yellow]{get_icon('warning')} Repository already exists, skipping..."
+            f"[yellow]{get_icon('warning')} Repository already exists at: [bold]{rel_path}[/], skipping..."
         )
     else:
         try:
