@@ -29,6 +29,20 @@ console = Console()
 # Use the built-in box styles from rich
 from rich.box import ROUNDED, DOUBLE
 
+HEAVY_DIRS = {
+    "node_modules",
+    "dist",
+    "build",
+    "target",
+    "__pycache__",
+    ".tox",
+    ".mypy_cache",
+    ".idea",
+    ".vscode",
+    ".venv",
+    "venv",
+}
+
 # Icon mapping (will display as emoji in Rich)
 ICONS = {
     "git": "",  # nf-dev-git
@@ -202,7 +216,53 @@ def generate_commit_message():
     return f"{random.choice(prefixes)} {random.choice(areas)} {random.choice(details)}"
 
 
-def process_repository(entry_path, entry, args, task_id=None, progress=None):
+def find_git_repos(
+    base_dir: str, only=None, exclude=None, max_depth: int = 3, followlinks: bool = True
+):
+    """
+    Recursively find git repos under base_dir up to max_depth.
+    - only/exclude apply to the first path component under base_dir (bucket names).
+    - Prunes heavy dirs for speed.
+    - Stops descending once a .git is found.
+    Returns absolute repository paths.
+    """
+    base_dir = os.path.expanduser(base_dir)
+    only = set(only or [])
+    exclude = set(exclude or [])
+    repos = []
+
+    for root, dirs, _ in os.walk(base_dir, followlinks=followlinks):
+        rel = os.path.relpath(root, base_dir)
+        depth = 0 if rel == "." else rel.count(os.sep) + 1
+
+        # prune heavy dirs
+        dirs[:] = [d for d in dirs if d not in HEAVY_DIRS]
+
+        # respect max depth
+        if depth > max_depth:
+            dirs[:] = []
+            continue
+
+        # apply include/exclude on first component (bucket)
+        first = "" if rel == "." else rel.split(os.sep, 1)[0]
+        if first in exclude:
+            dirs[:] = []
+            continue
+        if only and first and first not in only:
+            # don't prune entirely; we may still hit a selected bucket elsewhere
+            pass
+
+        if ".git" in dirs:
+            repos.append(root)
+            # don't descend inside a repo
+            dirs[:] = []
+
+    return sorted(repos)
+
+
+def process_repository(
+    entry_path, entry, args, task_id=None, progress=None, orig_cwd=None
+):
     """Process a single git repository with visual enhancements using Rich."""
     # Set up the repository panel
     repo_panel = Panel(
@@ -502,73 +562,39 @@ def process_repository(entry_path, entry, args, task_id=None, progress=None):
         return False
     finally:
         # Return to the original directory
-        os.chdir(args.current_dir)
+        os.chdir(orig_cwd or args.current_dir)
         console.print(
             f"[dim cyan]{get_icon('separator') * (shutil.get_terminal_size().columns // 2)}[/]"
         )
 
 
 def main():
-    """Enhanced main function with Rich UI components."""
+    """Enhanced main function with recursive repo detection and Rich UI."""
     parser = argparse.ArgumentParser(
         description="A beautiful Git repository manager for multiple projects.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument(
-        "--handle-gitignore",
-        action="store_true",
-        help="Ensure .gitignore includes .DS_Store and update it if necessary.",
-    )
-    parser.add_argument(
-        "--remove-ds-store",
-        action="store_true",
-        help="Remove .DS_Store files from the repository.",
-    )
-    parser.add_argument(
-        "--commit-message",
-        type=str,
-        default="auto-commit",
-        help="Commit message to use (or 'auto-commit' for AI-generated messages).",
-    )
-    parser.add_argument(
-        "--exclude",
-        type=str,
-        nargs="+",
-        default=[],
-        help="List of directories to exclude.",
-    )
-    parser.add_argument(
-        "--only",
-        type=str,
-        nargs="+",
-        default=[],
-        help="List of directories to include (if empty, include all).",
-    )
-    parser.add_argument(
-        "--pull", action="store_true", help="Pull changes from the remote repository."
-    )
+    parser.add_argument("--handle-gitignore", action="store_true")
+    parser.add_argument("--remove-ds-store", action="store_true")
+    parser.add_argument("--commit-message", type=str, default="auto-commit")
+    parser.add_argument("--exclude", type=str, nargs="+", default=[])
+    parser.add_argument("--only", type=str, nargs="+", default=[])
+    parser.add_argument("--pull", action="store_true")
     parser.add_argument(
         "--no-auto-commit",
         action="store_false",
         dest="use_ai_commit",
         default=True,
-        help="Don't use the ai_commit command (use manual git commands instead).",
     )
-    parser.add_argument(
-        "--dir",
-        type=str,
-        default="~/Neoware",
-        help="Base directory containing git repositories.",
-    )
+    parser.add_argument("--dir", type=str, default="~/Neoware")
 
     args = parser.parse_args()
     args.current_dir = os.path.expanduser(args.dir)
+    orig_cwd = os.getcwd()
 
-    # Print a fancy header
     print_header("Git Repository Manager")
 
-    # Show configuration as a table
     config_table = Table(
         title="Configuration",
         title_style="bold cyan",
@@ -577,10 +603,8 @@ def main():
         show_header=True,
         header_style="bold cyan",
     )
-
     config_table.add_column("Setting", style="cyan")
     config_table.add_column("Value", style="green")
-
     config_table.add_row("Base Directory", args.current_dir)
     config_table.add_row("Pull Changes", "Yes" if args.pull else "No")
     config_table.add_row("Handle .gitignore", "Yes" if args.handle_gitignore else "No")
@@ -590,71 +614,64 @@ def main():
         "Commit Message",
         "AI Generated" if args.commit_message == "auto-commit" else args.commit_message,
     )
-
     if args.exclude:
-        config_table.add_row("Excluded Directories", ", ".join(args.exclude))
+        config_table.add_row("Excluded", ", ".join(args.exclude))
     if args.only:
-        config_table.add_row("Including Only", ", ".join(args.only))
+        config_table.add_row("Only", ", ".join(args.only))
 
     console.print(config_table)
 
-    # Scan for repositories
-    # Scan for repositories without using status
+    # ----------- NEW SCANNING ----------
     console.print("[bold blue]Scanning for Git repositories...[/]")
-    entries = os.listdir(args.current_dir)
-    git_repos = []
-    excluded_repos = []
 
-    for entry in entries:
-        if entry in args.exclude:
-            excluded_repos.append(entry)
-            continue
-        if args.only and entry not in args.only:
-            continue
+    git_repo_paths = find_git_repos(
+        base_dir=args.current_dir,
+        only=args.only,
+        exclude=args.exclude,
+        max_depth=3,
+        followlinks=True,
+    )
 
-        entry_path = os.path.join(args.current_dir, entry)
-        if os.path.isdir(entry_path) and os.path.isdir(
-            os.path.join(entry_path, ".git")
-        ):
-            git_repos.append(entry)
+    git_repos = [
+        (path, os.path.relpath(path, args.current_dir)) for path in git_repo_paths
+    ]
 
-    # Display summary
     summary_panel = Panel(
-        f"{get_icon('folder')} Found [bold green]{len(git_repos)}[/] Git repositories to process\n"
-        + (
-            f"{get_icon('exclude')} Excluding [yellow]{len(excluded_repos)}[/] repositories"
-            if excluded_repos
-            else ""
-        ),
+        f"{get_icon('folder')} Found [bold green]{len(git_repos)}[/] Git repositories to process",
         title="Repository Summary",
         border_style="blue",
     )
     console.print(summary_panel)
+    # -----------------------------------
+
     argcomplete.autocomplete(parser)
 
-    # Process repositories with progress bar
     if git_repos:
-        # Process repositories without nested Progress
+        console.print(f"[bold blue]Processing {len(git_repos)} repositories...[/]\n")
         success_count = 0
 
-        # Create a simple progress display at the top
-        console.print(f"[bold blue]Processing {len(git_repos)} repositories...[/]")
-
-        for idx, entry in enumerate(git_repos, 1):
-            entry_path = os.path.join(args.current_dir, entry)
+        for idx, (repo_path, display_name) in enumerate(git_repos, 1):
             console.print(f"\n[bold cyan]Repository {idx}/{len(git_repos)}:[/]")
-            if process_repository(entry_path, entry, args, None, None):
+            ok = process_repository(
+                entry_path=repo_path,
+                entry=display_name,
+                args=args,
+                task_id=None,
+                progress=None,
+                orig_cwd=orig_cwd,
+            )
+            if ok:
                 success_count += 1
 
-        # Final summary
         console.print()
         final_panel = Panel(
-            f"{get_icon('sparkles')} [bold]{'All' if success_count == len(git_repos) else success_count}/{len(git_repos)}[/] repositories processed successfully {get_icon('sparkles')}",
+            f"{get_icon('sparkles')} [bold]{success_count}/{len(git_repos)}[/] repositories processed successfully {get_icon('sparkles')}",
             border_style="green" if success_count == len(git_repos) else "yellow",
             title="Processing Complete",
             title_align="center",
         )
         console.print(final_panel)
+
     else:
         console.print(
             f"\n[bold yellow]{get_icon('warning')} No Git repositories found to process[/]"
