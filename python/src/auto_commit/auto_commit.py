@@ -218,17 +218,17 @@ def generate_commit_message():
 
 
 def _match_any(path_rel: str, patterns) -> bool:
-    """Match against full relative path, repo basename, and bucket."""
+    """Match against full relative path, repo basename, and top component (bucket)."""
     if not patterns:
         return False
     norm = path_rel.replace(os.sep, "/")
     base = os.path.basename(norm)
-    bucket = norm.split("/", 1)[0] if "/" in norm else norm
+    top = norm.split("/", 1)[0] if "/" in norm else norm
     for pat in patterns:
         if (
             fnmatch.fnmatch(norm, pat)
             or fnmatch.fnmatch(base, pat)
-            or fnmatch.fnmatch(bucket, pat)
+            or fnmatch.fnmatch(top, pat)
         ):
             return True
     return False
@@ -243,21 +243,27 @@ def find_git_repos(
 ):
     """
     Recursively find git repos under base_dir up to max_depth.
-    - Prunes heavy dirs for speed.
-    - Stops descending once a .git is found.
-    - Filters with glob patterns:
-        * --only PAT ...  (keep if any pattern matches)
-        * --exclude PAT ... (drop if any pattern matches)
-      Patterns apply to: relative path (e.g. '00-apps/Zvezda'),
-      repo basename (e.g. 'Zvezda'), and bucket (e.g. '00-apps').
+
+    Detects repos if either:
+      - a '.git' **directory** exists, OR
+      - a '.git' **file** exists (worktrees / linked gitdir)
+
+    Filters with glob patterns:
+      --only PAT ...   (keep if any pattern matches)
+      --exclude PAT ... (drop if any pattern matches)
+    Patterns are matched against:
+      - relative path from base_dir (e.g. '00-apps/Zvezda' or 'zsh')
+      - repo basename (e.g. 'Zvezda', 'zsh')
+      - top component (bucket) when present (e.g. '00-apps')
     """
     base_dir = os.path.expanduser(base_dir)
     only = list(only or [])
     exclude = list(exclude or [])
+
     repos_abs = []
     repos_rel = []
 
-    for root, dirs, _ in os.walk(base_dir, followlinks=followlinks):
+    for root, dirs, files in os.walk(base_dir, followlinks=followlinks):
         rel = os.path.relpath(root, base_dir)
         depth = 0 if rel == "." else rel.count(os.sep) + 1
 
@@ -269,18 +275,20 @@ def find_git_repos(
             dirs[:] = []
             continue
 
-        if ".git" in dirs:
+        # detect repo by .git dir OR .git file
+        is_repo = (".git" in dirs) or (".git" in files)
+        if is_repo:
             repos_abs.append(root)
             repos_rel.append(rel if rel != "." else os.path.basename(root))
-            dirs[:] = []  # don't descend inside a repo
+            # don't descend inside a repo
+            dirs[:] = []
+            continue
 
-    # apply filters
+    # apply only/exclude
     filtered = []
     for abs_path, rel_path in zip(repos_abs, repos_rel):
-        # include filter
         if only and not _match_any(rel_path, only):
             continue
-        # exclude filter
         if exclude and _match_any(rel_path, exclude):
             continue
         filtered.append(abs_path)
