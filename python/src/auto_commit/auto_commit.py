@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced auto_commit.py with configuration system integration
+Enhanced auto_commit.py with Iskra configuration system integration
 """
 
 import os
@@ -23,7 +23,7 @@ console = Console()
 def main():
     """Enhanced main function with configuration system"""
     parser = argparse.ArgumentParser(
-        description="Auto-commit with configuration management",
+        description="Iskra - Intelligent Git automation with configuration management",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -143,9 +143,7 @@ def main():
             console.print(
                 f"[yellow]{get_icon('warning')} No tracked repositories found[/]"
             )
-            console.print(
-                f"\n[dim]Run 'auto-commit init' to scan and track repositories[/]"
-            )
+            console.print(f"\n[dim]Run 'iskra init' to scan and track repositories[/]")
             return
 
         # Apply filters to tracked repos
@@ -278,7 +276,7 @@ def main():
     console.print(final_panel)
 
     # Log to file
-    log_file = config_manager.get_log_file()
+    log_file = config_manager.get_log_file("iskra")
     with open(log_file, "a") as f:
         f.write(f"\n{'='*80}\n")
         f.write(f"Run at: {datetime.now().isoformat()}\n")

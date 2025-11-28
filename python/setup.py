@@ -30,15 +30,15 @@ class build_py(_build_py):
 
 
 setup(
-    name="auto-commit",
-    version="1.0.0",
+    name="Iskra",
+    version="1.7.3",
     description="Intelligent multi-repository Git automation tool with AI-powered commit messages",
     long_description=open("README.md").read() if os.path.exists("README.md") else "",
     long_description_content_type="text/markdown",
-    author="Your Name",
-    author_email="your.email@example.com",
-    url="https://github.com/yourusername/auto-commit",
-    license="MIT",
+    author="NoamFav",
+    author_email="noamfav@nf-software.com",
+    url="https://github.com/NoamFav/Iskra",
+    license="Private-token",
     # Package discovery
     packages=find_packages(where="src"),
     package_dir={"": "src"},
@@ -66,10 +66,10 @@ setup(
     # Entry points for command-line scripts
     entry_points={
         "console_scripts": [
-            "auto-commit=auto_commit.auto_commit:main",
+            "iskra=auto_commit.auto_commit:main",
             "pull-repos=auto_commit.pull_repos:main",
             "ai_commit=auto_commit.ai_commit:main",
-            "ac-init=auto_commit.init:main",  # Short alias for init
+            "iskra-init=auto_commit.init:main",
         ],
     },
     # Build command customization
@@ -89,11 +89,11 @@ setup(
         "Topic :: Software Development :: Build Tools",
     ],
     # Keywords for discoverability
-    keywords="git automation commit ai ollama multi-repository devtools",
+    keywords="git automation commit ai ollama multi-repository devtools iskra",
     # Project URLs
     project_urls={
-        "Bug Reports": "https://github.com/yourusername/auto-commit/issues",
-        "Source": "https://github.com/yourusername/auto-commit",
-        "Documentation": "https://github.com/yourusername/auto-commit#readme",
+        "Bug Reports": "https://github.com/NoamFav/Iskra/issues",
+        "Source": "https://github.com/NoamFav/Iskra",
+        "Documentation": "https://github.com/NoamFav/Iskra#readme",
     },
 )

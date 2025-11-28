@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Configuration management for auto-commit
+Configuration management for Iskra
 Handles global config, per-repo config, and tracked repositories
 """
 
@@ -39,7 +39,7 @@ class GlobalConfig:
 
     # Paths
     base_dir: str = "~/Neoware"
-    config_dir: str = "~/.auto-commit"
+    config_dir: str = "~/.config/iskra"
 
     # Repository scanning
     max_depth: int = 3
@@ -121,10 +121,10 @@ class RepoConfig:
 
 
 class ConfigManager:
-    """Manages all configuration for auto-commit"""
+    """Manages all configuration for Iskra"""
 
     def __init__(self, config_dir: Optional[str] = None):
-        self.config_dir = Path(config_dir or "~/.auto-commit").expanduser()
+        self.config_dir = Path(config_dir or "~/.config/iskra").expanduser()
         self.config_file = self.config_dir / "config.yaml"
         self.repos_file = self.config_dir / "repos.json"
         self.logs_dir = self.config_dir / "logs"
@@ -252,7 +252,7 @@ class ConfigManager:
 
     def load_repo_config(self, repo_path: str) -> Optional[RepoConfig]:
         """Load per-repository configuration if it exists"""
-        config_path = Path(repo_path) / ".auto-commit.yaml"
+        config_path = Path(repo_path) / ".iskra.yaml"
 
         if not config_path.exists():
             return None

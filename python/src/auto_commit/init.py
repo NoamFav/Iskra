@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Initialize auto-commit configuration and scan for repositories
+Initialize Iskra configuration and scan for repositories
 """
 
 import os
@@ -113,7 +113,7 @@ def init_command(args):
     """Initialize auto-commit configuration"""
     console.print(
         Panel(
-            "[bold white]Auto-Commit Initialization[/]",
+            "[bold white]Iskra Initialization[/]",
             border_style="cyan",
             title="[bold blue]Setup[/]",
             subtitle=f"[dim]Version 1.0.0[/]",
@@ -261,9 +261,7 @@ def list_command(args):
 
     if not repos:
         console.print(f"[yellow]{get_icon('warning')} No tracked repositories found[/]")
-        console.print(
-            f"\n[dim]Run 'auto-commit init' to scan and track repositories[/]"
-        )
+        console.print(f"\n[dim]Run 'iskra init' to scan and track repositories[/]")
         return
 
     display_repo_table(repos)
@@ -314,7 +312,7 @@ def remove_command(args):
 def main():
     """Main entry point for init commands"""
     parser = argparse.ArgumentParser(
-        description="Initialize and manage auto-commit configuration",
+        description="Initialize and manage Iskra configuration",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
