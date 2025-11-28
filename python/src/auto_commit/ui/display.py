@@ -221,22 +221,27 @@ def process_repository(
                 console.print(commit_panel)
 
                 # Push changes
-                console.print("[bold blue]Pushing to remote...[/]")
-                push_result = git_push()
+                if hasattr(args, "auto_push") and args.auto_push:
+                    console.print("[bold blue]Pushing to remote...[/]")
+                    push_result = git_push()
 
-                # Display push results
-                if push_result.stdout.strip():
-                    console.print(
-                        Panel(
-                            push_result.stdout.strip(),
-                            title=f"[bold cyan]{get_icon('push')} Push Results[/]",
-                            border_style="cyan",
-                            padding=(1, 2),
+                    # Display push results
+                    if push_result.stdout.strip():
+                        console.print(
+                            Panel(
+                                push_result.stdout.strip(),
+                                title=f"[bold cyan]{get_icon('push')} Push Results[/]",
+                                border_style="cyan",
+                                padding=(1, 2),
+                            )
                         )
-                    )
-                else:
+                    else:
+                        console.print(
+                            f"[bold cyan]{get_icon('push')} Changes pushed to remote repository[/]"
+                        )
+                elif hasattr(args, "auto_push"):
                     console.print(
-                        f"[bold cyan]{get_icon('push')} Changes pushed to remote repository[/]"
+                        f"[dim]{get_icon('info')} Skipping push (auto_push disabled)[/]"
                     )
 
         # Calculate and display processing time
@@ -267,7 +272,8 @@ def process_repository(
         return False
     finally:
         # Return to the original directory
-        os.chdir(orig_cwd or args.current_dir)
+        if orig_cwd:
+            os.chdir(orig_cwd)
         console.print(
             f"[dim cyan]{get_icon('separator') * (shutil.get_terminal_size().columns // 2)}[/]"
         )
