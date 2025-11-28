@@ -34,9 +34,9 @@ def main():
     # Override config options
     parser.add_argument("--dir", type=str, help="Base directory (overrides config)")
     parser.add_argument(
-        "--use-tracked",
+        "--scan",
         action="store_true",
-        help="Use tracked repos instead of scanning",
+        help="Scan for repos instead of using tracked repos",
     )
 
     # Git operations
@@ -134,17 +134,32 @@ def main():
             )
         )
 
-    # Get repositories
-    if args.use_tracked:
-        # Use tracked repositories from config
-        tracked_repos = config_manager.get_all_repos(active_only=True)
+    # Get repositories - smart default behavior
 
-        if not tracked_repos:
-            console.print(
-                f"[yellow]{get_icon('warning')} No tracked repositories found[/]"
-            )
-            console.print(f"\n[dim]Run 'iskra init' to scan and track repositories[/]")
+    tracked_repos = config_manager.get_all_repos(active_only=True)
+
+    # Use tracked repos if available, unless --scan is specified
+    if args.scan or not tracked_repos:
+        # Scan for repositories
+        console.print("[bold blue]Scanning for Git repositories...[/]")
+
+        git_repo_paths = find_git_repos(
+            base_dir=base_dir,
+            only=config.only_patterns,
+            exclude=config.exclude_patterns,
+            max_depth=config.max_depth,
+            followlinks=config.follow_symlinks,
+        )
+
+        git_repos = [(path, os.path.relpath(path, base_dir)) for path in git_repo_paths]
+
+        if not args.scan and not git_repos:
+            console.print(f"\n[yellow]{get_icon('warning')} No repositories found[/]")
+            console.print(f"[dim]Run 'iskra-init init' to track repositories[/]")
             return
+    else:
+        # Use tracked repositories
+        console.print(f"[bold blue]Using {len(tracked_repos)} tracked repositories[/]")
 
         # Apply filters to tracked repos
         git_repos = []
@@ -167,26 +182,9 @@ def main():
 
             git_repos.append((repo_path, repo_name))
 
-        console.print(f"[bold blue]Using {len(git_repos)} tracked repositories[/]")
-    else:
-        # Scan for repositories
-        console.print("[bold blue]Scanning for Git repositories...[/]")
-
-        git_repo_paths = find_git_repos(
-            base_dir=base_dir,
-            only=config.only_patterns,
-            exclude=config.exclude_patterns,
-            max_depth=config.max_depth,
-            followlinks=config.follow_symlinks,
-        )
-
-        git_repos = [(path, os.path.relpath(path, base_dir)) for path in git_repo_paths]
-
-    if not git_repos:
         console.print(
-            f"\n[yellow]{get_icon('warning')} No repositories found to process[/]"
+            f"[bold green]Selected {len(git_repos)} repositories after filters[/]"
         )
-        return
 
     # Show summary
     summary_panel = Panel(
@@ -253,7 +251,7 @@ def main():
             success_count += 1
 
             # Update tracked repo info if using tracked repos
-            if args.use_tracked:
+            if not args.scan and tracked_repos:
                 result = subprocess.run(
                     ["git", "rev-parse", "HEAD"],
                     capture_output=True,
@@ -277,6 +275,7 @@ def main():
 
     # Log to file
     log_file = config_manager.get_log_file("iskra")
+
     with open(log_file, "a") as f:
         f.write(f"\n{'='*80}\n")
         f.write(f"Run at: {datetime.now().isoformat()}\n")
