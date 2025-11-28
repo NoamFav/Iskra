@@ -36,18 +36,21 @@ Iskra is a powerful command-line tool designed to manage multiple Git repositori
 <td width="50%">
 
 ### 🎯 **Smart Repository Tracking**
+
 - Track repositories once, use everywhere
 - Automatic discovery and scanning
 - Per-repository configuration overrides
 - Active/inactive repository management
 
 ### 🤖 **AI-Powered Commits**
+
 - Intelligent commit message generation via Ollama
 - Conventional commit format support
 - Context-aware type detection
 - Multi-provider support (Ollama, Claude, OpenAI)
 
 ### 🔄 **Batch Operations**
+
 - Process multiple repositories simultaneously
 - Flexible filtering with glob patterns
 - Skip unchanged repositories automatically
@@ -57,18 +60,21 @@ Iskra is a powerful command-line tool designed to manage multiple Git repositori
 <td width="50%">
 
 ### 🎨 **Beautiful Terminal UI**
+
 - Rich formatting with colors and icons
 - Real-time progress indicators
 - Detailed operation summaries
 - Tree view of file changes
 
 ### ⚙️ **Flexible Configuration**
+
 - Global and per-repository settings
 - Multiple configuration profiles
 - YAML-based configuration files
 - Environment variable support
 
 ### 🛡️ **Safety First**
+
 - Dry-run mode to preview actions
 - Confirmation prompts for critical operations
 - Protected branch detection
@@ -91,6 +97,20 @@ Before installing Iskra, ensure you have:
 - **Git** - [Download Git](https://git-scm.com/downloads)
 - **Ollama** (optional) - [Download Ollama](https://ollama.ai) (for AI commit messages)
 
+### Quick Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/NoamFav/Iskra/main/install.sh | bash
+```
+
+Or download and inspect first:
+
+```bash
+wget https://raw.githubusercontent.com/NoamFav/Iskra/main/install.sh
+chmod +x install.sh
+./install.sh
+```
+
 ### Install from Source
 
 ```bash
@@ -109,12 +129,12 @@ iskra --help
 
 After installation, you'll have access to:
 
-| Command | Description |
-|---------|-------------|
-| `iskra` | Main repository automation tool |
+| Command      | Description                           |
+| ------------ | ------------------------------------- |
+| `iskra`      | Main repository automation tool       |
 | `iskra-init` | Configuration and repository tracking |
-| `ai_commit` | AI-powered commit message generator |
-| `pull-repos` | GitHub repository cloning tool |
+| `ai_commit`  | AI-powered commit message generator   |
+| `pull-repos` | GitHub repository cloning tool        |
 
 ---
 
@@ -129,12 +149,14 @@ iskra-init init --base-dir ~/Projects
 ```
 
 This interactive wizard will:
+
 - ✅ Create configuration at `~/.config/iskra/`
 - ✅ Scan for all Git repositories in `~/Projects`
 - ✅ Track discovered repositories
 - ✅ Configure your preferences (AI commits, auto-push, etc.)
 
 **Quick setup (skip interactive questions):**
+
 ```bash
 iskra-init init --base-dir ~/Projects -y
 ```
@@ -148,6 +170,7 @@ iskra-init list
 ```
 
 **Example output:**
+
 ```
 ┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
 ┃ Name        ┃ Path              ┃ Branch ┃ Remote           ┃ Status  ┃
@@ -166,6 +189,7 @@ iskra
 ```
 
 **What happens:**
+
 1. 🔍 Loads your tracked repositories
 2. 🤖 Generates AI commit messages for changes
 3. 💾 Commits with intelligent messages
@@ -420,14 +444,16 @@ Iskra uses Ollama to generate intelligent, context-aware commit messages.
 ### Setup Ollama
 
 1. **Install Ollama:**
+
    ```bash
    # macOS
    brew install ollama
-   
+
    # Or download from https://ollama.ai
    ```
 
 2. **Pull a model:**
+
    ```bash
    ollama pull llama2
    # or
@@ -462,6 +488,7 @@ Iskra follows the [Conventional Commits](https://www.conventionalcommits.org/) s
 ```
 
 **Example outputs:**
+
 - `feat(auth): add OAuth2 authentication flow`
 - `fix(api): resolve null pointer exception in user handler`
 - `docs(readme): update installation instructions`
@@ -648,6 +675,7 @@ iskra --only "backend-*" --pull
 **Problem:** `iskra` shows "No repositories found"
 
 **Solutions:**
+
 ```bash
 # Make sure you've initialized Iskra
 iskra-init init --base-dir ~/Projects
@@ -664,6 +692,7 @@ iskra-init list
 **Problem:** AI commit messages fail or show errors
 
 **Solutions:**
+
 ```bash
 # Check if Ollama is running
 ollama list
@@ -688,6 +717,7 @@ echo $OLLAMA_URL
 **Problem:** Settings don't seem to apply
 
 **Solutions:**
+
 ```bash
 # Check config file location
 ls -la ~/.config/iskra/
@@ -708,6 +738,7 @@ cat .iskra.yaml  # in the problematic repo
 **Problem:** `pull-repos` fails
 
 **Solutions:**
+
 ```bash
 # Check if GitHub CLI is installed
 which gh
@@ -728,6 +759,7 @@ gh repo list --limit 5
 **Problem:** Cannot write to config directory
 
 **Solutions:**
+
 ```bash
 # Check permissions
 ls -la ~/.config/
@@ -744,6 +776,7 @@ chmod 755 ~/.config/iskra
 **Problem:** Push fails with authentication errors
 
 **Solutions:**
+
 ```bash
 # Check remote URL
 git remote -v
@@ -782,6 +815,7 @@ grep "processed" ~/.config/iskra/logs/*.log
 ### Log Format
 
 Each log entry includes:
+
 - 📅 Timestamp
 - 📍 Operation type
 - 📂 Repository path
@@ -789,6 +823,7 @@ Each log entry includes:
 - 📝 Details and error messages
 
 **Example log entry:**
+
 ```
 ================================================================================
 Run at: 2024-11-28T14:30:45.123456
@@ -807,26 +842,31 @@ Contributions are welcome! Here's how you can help:
 ### Getting Started
 
 1. **Fork the repository**
+
    ```bash
    gh repo fork NoamFav/Iskra
    ```
 
 2. **Create a feature branch**
+
    ```bash
    git checkout -b feature/amazing-feature
    ```
 
 3. **Make your changes**
+
    - Write clean, documented code
    - Follow existing code style
    - Add tests if applicable
 
 4. **Commit your changes**
+
    ```bash
    git commit -m "feat: add amazing feature"
    ```
 
 5. **Push to your fork**
+
    ```bash
    git push origin feature/amazing-feature
    ```
@@ -868,6 +908,7 @@ black src/
 This project is proprietary and confidential software licensed under a proprietary license agreement. See [LICENSE.md](LICENSE.md) for details.
 
 **Key points:**
+
 - ❌ Not open source
 - ❌ No redistribution allowed
 - ❌ No modification allowed
@@ -897,16 +938,19 @@ Special thanks to the open-source community for inspiration and tools.
 Need help? We're here for you!
 
 ### Documentation
+
 - 📚 **Full Documentation**: [GitHub Wiki](https://github.com/NoamFav/Iskra#readme)
 - 💡 **Usage Examples**: See the [examples/](examples/) directory
 - 📝 **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
 ### Get Help
+
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/NoamFav/Iskra/issues)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/NoamFav/Iskra/discussions)
 - 📧 **Email Support**: [noamfav@nf-software.com](mailto:noamfav@nf-software.com)
 
 ### Stay Updated
+
 - ⭐ **Star the repo** to follow development
 - 👁️ **Watch releases** for updates
 - 🐦 **Follow on Twitter**: [@NoamFav](https://twitter.com/NoamFav) (if applicable)
@@ -916,6 +960,7 @@ Need help? We're here for you!
 ## 🗺️ Roadmap
 
 ### Version 2.0 (Coming Soon)
+
 - [ ] Multiple AI provider support (Claude, GPT-4)
 - [ ] Interactive mode for repository selection
 - [ ] Git worktree support
@@ -923,6 +968,7 @@ Need help? We're here for you!
 - [ ] Team collaboration features
 
 ### Future Plans
+
 - [ ] VS Code extension
 - [ ] Web dashboard for monitoring
 - [ ] Slack/Discord notifications
