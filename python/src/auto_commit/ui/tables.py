@@ -25,7 +25,6 @@ def create_config_table(args, for_pull_repos=False):
         if args.exclude:
             config_table.add_row("Excluded Patterns", ", ".join(args.exclude))
     else:
-        config_table.add_row("Base Directory", args.current_dir)
         config_table.add_row("Pull Changes", "Yes" if args.pull else "No")
         config_table.add_row(
             "Handle .gitignore", "Yes" if args.handle_gitignore else "No"
