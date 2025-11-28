@@ -11,6 +11,17 @@ src/auto_commit/ai_commit.py
 src/auto_commit/auto_commit.py
 src/auto_commit/pull_repos.py
 src/auto_commit/bin/ai_commit
+src/auto_commit/core/__init__.py
+src/auto_commit/core/constants.py
+src/auto_commit/core/git_operations.py
+src/auto_commit/core/repo_scanner.py
+src/auto_commit/github/__init__.py
+src/auto_commit/github/api.py
+src/auto_commit/github/clone.py
+src/auto_commit/ui/__init__.py
+src/auto_commit/ui/display.py
+src/auto_commit/ui/formatting.py
+src/auto_commit/ui/tables.py
 src/autocommit.egg-info/PKG-INFO
 src/autocommit.egg-info/SOURCES.txt
 src/autocommit.egg-info/dependency_links.txt
