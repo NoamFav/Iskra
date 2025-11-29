@@ -12,6 +12,14 @@ from .ui.formatting import print_header, get_icon
 from .ui.tables import create_config_table
 from .github.api import get_github_repos
 from .github.clone import process_repository
+from .output.formatter import (
+    get_formatter,
+    OutputPayload,
+    RepoResult,
+    RepoChanges,
+    RepoRemote,
+    RepoCommit,
+)
 
 # Install better traceback handling
 install_traceback(show_locals=True)
@@ -58,6 +66,10 @@ def main():
         nargs="+",
         default=[],
         help="List of repository name patterns to exclude (supports glob patterns).",
+    )
+
+    parser.add_argument(
+        "--json", action="store_true", help="Output the result in standard json format"
     )
 
     args = parser.parse_args()

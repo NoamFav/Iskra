@@ -66,6 +66,7 @@ def process_repository(repo_info, base_dir, total, current):
     console.print(repo_panel)
 
     start_time = time.time()
+    ok = True
 
     # Check if repository exists anywhere in base_dir or subdirectories
     existing_repo_path = find_repo_in_subdirs(base_dir, repo_short_name)
@@ -121,6 +122,7 @@ def process_repository(repo_info, base_dir, total, current):
                 console.print(stats_table)
 
         except subprocess.CalledProcessError as e:
+            ok = False
             console.print(f"[bold red]{get_icon('error')} Error cloning repository:")
             console.print(Panel(e.stderr, title="Error Details", border_style="red"))
 
@@ -129,4 +131,4 @@ def process_repository(repo_info, base_dir, total, current):
     )
     console.print()
 
-    return True
+    return ok
