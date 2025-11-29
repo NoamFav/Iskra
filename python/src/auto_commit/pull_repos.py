@@ -69,7 +69,16 @@ def main():
     )
 
     parser.add_argument(
-        "--json", action="store_true", help="Output the result in standard json format"
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON instead of Rich UI.",
+    )
+
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Suppress Rich UI and output only JSON.",
     )
 
     args = parser.parse_args()
