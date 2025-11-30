@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Initialize Iskra configuration and scan for repositories
+Initialize Iskra configuration and scan for repositories,
+with JSON/quiet output support.
 """
 
 import os
@@ -8,6 +9,7 @@ import subprocess
 import argparse
 from pathlib import Path
 from typing import List, Optional
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -18,6 +20,15 @@ from iskra.config import ConfigManager, RepoInfo, GlobalConfig
 from iskra.core.repo_scanner import find_git_repos
 from iskra.core.constants import ICONS
 from iskra.ui.formatting import get_icon
+
+from iskra.output.formatter import (
+    get_formatter,
+    OutputPayload,
+    RepoResult,
+    RepoChanges,
+    RepoRemote,
+    RepoCommit,
+)
 
 console = Console()
 
@@ -109,16 +120,19 @@ def display_repo_table(repos: List[RepoInfo]):
     console.print(table)
 
 
-def init_command(args):
+def init_command(args, formatter, json_mode: bool, quiet: bool):
     """Initialize auto-commit configuration"""
-    console.print(
-        Panel(
-            "[bold white]Iskra Initialization[/]",
-            border_style="cyan",
-            title="[bold blue]Setup[/]",
-            subtitle=f"[dim]Version 1.0.0[/]",
+    rich_enabled = not (json_mode or quiet)
+
+    if rich_enabled:
+        console.print(
+            Panel(
+                "[bold white]Iskra Initialization[/]",
+                border_style="cyan",
+                title="[bold blue]Setup[/]",
+                subtitle=f"[dim]Version 1.0.0[/]",
+            )
         )
-    )
 
     # Get or create config manager
     config_manager = ConfigManager()
@@ -130,7 +144,7 @@ def init_command(args):
     base_dir = Path(config_manager.global_config.base_dir).expanduser()
 
     # Confirm base directory
-    if not args.yes:
+    if rich_enabled and not args.yes:
         console.print(f"\n[bold]Base directory:[/] {base_dir}")
         if not Confirm.ask("Is this correct?", default=True):
             new_base = Prompt.ask("Enter base directory path")
@@ -139,18 +153,31 @@ def init_command(args):
 
     # Ensure base directory exists
     if not base_dir.exists():
-        console.print(
-            f"[yellow]{get_icon('warning')} Base directory does not exist: {base_dir}[/]"
-        )
-        if args.yes or Confirm.ask("Create it?", default=True):
+        if rich_enabled:
+            console.print(
+                f"[yellow]{get_icon('warning')} Base directory does not exist: {base_dir}[/]"
+            )
+        if args.yes or not rich_enabled or Confirm.ask("Create it?", default=True):
             base_dir.mkdir(parents=True, exist_ok=True)
-            console.print(f"[green]{get_icon('success')} Created directory[/]")
+            if rich_enabled:
+                console.print(f"[green]{get_icon('success')} Created directory[/]")
         else:
-            console.print("[red]Cancelled[/]")
+            if rich_enabled:
+                console.print("[red]Cancelled[/]")
+            payload = OutputPayload(
+                success=False,
+                operation="init",
+                repos_total=0,
+                repos_success=0,
+                repos_failed=0,
+                results=[],
+                errors=["base_dir_missing"],
+            )
+            formatter.emit(payload)
             return
 
     # Configure settings interactively if not using --yes
-    if not args.yes:
+    if rich_enabled and not args.yes:
         console.print("\n[bold cyan]Configuration Options[/]")
 
         # Max depth
@@ -185,40 +212,114 @@ def init_command(args):
     config_manager.save_global_config(config_manager.global_config)
 
     # Scan for repositories
-    repo_paths = scan_repositories(str(base_dir), config_manager.global_config)
+    if rich_enabled:
+        repo_paths = scan_repositories(str(base_dir), config_manager.global_config)
+    else:
+        repo_paths = find_git_repos(
+            base_dir=str(base_dir),
+            only=config_manager.global_config.only_patterns,
+            exclude=config_manager.global_config.exclude_patterns,
+            max_depth=config_manager.global_config.max_depth,
+            followlinks=config_manager.global_config.follow_symlinks,
+        )
 
     if not repo_paths:
-        console.print(f"[yellow]{get_icon('warning')} No repositories found[/]")
+        if rich_enabled:
+            console.print(f"[yellow]{get_icon('warning')} No repositories found[/]")
+        payload = OutputPayload(
+            success=True,
+            operation="init",
+            repos_total=0,
+            repos_success=0,
+            repos_failed=0,
+            results=[],
+            errors=[],
+        )
+        formatter.emit(payload)
         return
 
     # Display found repositories
-    console.print(f"\n[bold]Found {len(repo_paths)} repositories:[/]")
-    for i, path in enumerate(repo_paths[:5], 1):
-        rel_path = os.path.relpath(path, base_dir)
-        console.print(f"  {i}. {rel_path}")
+    if rich_enabled:
+        console.print(f"\n[bold]Found {len(repo_paths)} repositories:[/]")
+        for i, path in enumerate(repo_paths[:5], 1):
+            rel_path = os.path.relpath(path, base_dir)
+            console.print(f"  {i}. {rel_path}")
 
-    if len(repo_paths) > 5:
-        console.print(f"  ... and {len(repo_paths) - 5} more")
+        if len(repo_paths) > 5:
+            console.print(f"  ... and {len(repo_paths) - 5} more")
 
     # Confirm tracking
-    if not args.yes and not Confirm.ask(
-        f"\nTrack these {len(repo_paths)} repositories?", default=True
+    if (
+        rich_enabled
+        and not args.yes
+        and not Confirm.ask(
+            f"\nTrack these {len(repo_paths)} repositories?", default=True
+        )
     ):
         console.print("[yellow]Cancelled[/]")
+        payload = OutputPayload(
+            success=False,
+            operation="init",
+            repos_total=len(repo_paths),
+            repos_success=0,
+            repos_failed=0,
+            results=[],
+            errors=["cancelled_by_user"],
+        )
+        formatter.emit(payload)
         return
 
     # Track repositories with progress
-    console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold blue]{task.description}"),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Tracking repositories...", total=len(repo_paths))
+    tracked_count = 0
+    tracked_results = []
 
-        tracked_count = 0
+    if rich_enabled:
+        console.print()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Tracking repositories...", total=len(repo_paths))
+
+            for repo_path in repo_paths:
+                name = os.path.basename(repo_path)
+                git_info = get_git_info(repo_path)
+
+                repo_info = RepoInfo(
+                    path=repo_path,
+                    name=name,
+                    remote_url=git_info.get("remote_url"),
+                    default_branch=git_info.get("default_branch"),
+                    last_commit=git_info.get("last_commit"),
+                )
+
+                if config_manager.add_repo(repo_info):
+                    tracked_count += 1
+                    tracked_results.append(
+                        RepoResult(
+                            path=repo_info.path,
+                            name=repo_info.name,
+                            status="success",
+                            branch=repo_info.default_branch or "",
+                            remote=RepoRemote(
+                                url=repo_info.remote_url or "",
+                                ahead=0,
+                                behind=0,
+                            ),
+                            commit=RepoCommit(
+                                hash=repo_info.last_commit or "",
+                                message="",
+                                author="",
+                                timestamp="",
+                            ),
+                        )
+                    )
+
+                progress.update(task, advance=1)
+    else:
         for repo_path in repo_paths:
             name = os.path.basename(repo_path)
             git_info = get_git_info(repo_path)
@@ -233,48 +334,147 @@ def init_command(args):
 
             if config_manager.add_repo(repo_info):
                 tracked_count += 1
-
-            progress.update(task, advance=1)
+                tracked_results.append(
+                    RepoResult(
+                        path=repo_info.path,
+                        name=repo_info.name,
+                        status="success",
+                        branch=repo_info.default_branch or "",
+                        remote=RepoRemote(
+                            url=repo_info.remote_url or "",
+                            ahead=0,
+                            behind=0,
+                        ),
+                        commit=RepoCommit(
+                            hash=repo_info.last_commit or "",
+                            message="",
+                            author="",
+                            timestamp="",
+                        ),
+                    )
+                )
 
     # Success message
-    console.print(
-        f"\n[bold green]{get_icon('success')} Successfully tracked {tracked_count} repositories![/]\n"
+    if rich_enabled:
+        console.print(
+            f"\n[bold green]{get_icon('success')} Successfully tracked {tracked_count} repositories![/]\n"
+        )
+
+        # Display tracked repos
+        if args.show_repos or (
+            not args.yes and Confirm.ask("Show tracked repositories?", default=True)
+        ):
+            display_repo_table(config_manager.get_all_repos())
+
+        # Show config location
+        console.print(f"\n[dim]Configuration saved to: {config_manager.config_dir}[/]")
+        console.print(f"[dim]  • Config: {config_manager.config_file}[/]")
+        console.print(f"[dim]  • Repos:  {config_manager.repos_file}[/]")
+        console.print(f"[dim]  • Logs:   {config_manager.logs_dir}[/]")
+
+    # Emit JSON payload
+    payload = OutputPayload(
+        success=(tracked_count > 0),
+        operation="init",
+        repos_total=len(repo_paths),
+        repos_success=tracked_count,
+        repos_failed=len(repo_paths) - tracked_count,
+        results=tracked_results,
+        errors=[],
     )
-
-    # Display tracked repos
-    if args.show_repos or (
-        not args.yes and Confirm.ask("Show tracked repositories?", default=True)
-    ):
-        display_repo_table(config_manager.get_all_repos())
-
-    # Show config location
-    console.print(f"\n[dim]Configuration saved to: {config_manager.config_dir}[/]")
-    console.print(f"[dim]  • Config: {config_manager.config_file}[/]")
-    console.print(f"[dim]  • Repos:  {config_manager.repos_file}[/]")
-    console.print(f"[dim]  • Logs:   {config_manager.logs_dir}[/]")
+    formatter.emit(payload)
 
 
-def list_command(args):
+def list_command(args, formatter, json_mode: bool, quiet: bool):
     """List all tracked repositories"""
+    rich_enabled = not (json_mode or quiet)
     config_manager = ConfigManager()
     repos = config_manager.get_all_repos(active_only=not args.all)
 
     if not repos:
-        console.print(f"[yellow]{get_icon('warning')} No tracked repositories found[/]")
-        console.print(f"\n[dim]Run 'iskra init' to scan and track repositories[/]")
+        if rich_enabled:
+            console.print(
+                f"[yellow]{get_icon('warning')} No tracked repositories found[/]"
+            )
+            console.print(f"\n[dim]Run 'iskra init' to scan and track repositories[/]")
+
+        payload = OutputPayload(
+            success=True,
+            operation="status",
+            repos_total=0,
+            repos_success=0,
+            repos_failed=0,
+            results=[],
+            errors=[],
+        )
+        formatter.emit(payload)
         return
 
-    display_repo_table(repos)
+    if rich_enabled:
+        display_repo_table(repos)
+
+    results = []
+    for repo in repos:
+        results.append(
+            RepoResult(
+                path=repo.path,
+                name=repo.name,
+                status="success" if repo.active else "skipped",
+                branch=repo.default_branch or "",
+                remote=RepoRemote(
+                    url=repo.remote_url or "",
+                    ahead=0,
+                    behind=0,
+                ),
+                commit=RepoCommit(
+                    hash=repo.last_commit or "",
+                    message="",
+                    author="",
+                    timestamp=repo.last_updated or "",
+                ),
+            )
+        )
+
+    payload = OutputPayload(
+        success=True,
+        operation="status",
+        repos_total=len(repos),
+        repos_success=len(repos),
+        repos_failed=0,
+        results=results,
+        errors=[],
+    )
+    formatter.emit(payload)
 
 
-def add_command(args):
+def add_command(args, formatter, json_mode: bool, quiet: bool):
     """Add a repository to tracking"""
+    rich_enabled = not (json_mode or quiet)
     config_manager = ConfigManager()
     repo_path = Path(args.path).expanduser().resolve()
 
     # Check if it's a git repo
     if not (repo_path / ".git").exists() and not (repo_path / ".git").is_file():
-        console.print(f"[red]{get_icon('error')} Not a git repository: {repo_path}[/]")
+        if rich_enabled:
+            console.print(
+                f"[red]{get_icon('error')} Not a git repository: {repo_path}[/]"
+            )
+        payload = OutputPayload(
+            success=False,
+            operation="init",
+            repos_total=1,
+            repos_success=0,
+            repos_failed=1,
+            results=[
+                RepoResult(
+                    path=str(repo_path),
+                    name=repo_path.name,
+                    status="failed",
+                )
+            ],
+            errors=["not_a_git_repository"],
+        )
+        formatter.emit(payload)
         return
 
     # Get git info
@@ -288,25 +488,80 @@ def add_command(args):
         last_commit=git_info.get("last_commit"),
     )
 
-    if config_manager.add_repo(repo_info):
-        console.print(
-            f"[green]{get_icon('success')} Added repository: {repo_path.name}[/]"
-        )
-    else:
-        console.print(f"[yellow]{get_icon('warning')} Repository already tracked[/]")
+    added = config_manager.add_repo(repo_info)
+
+    if rich_enabled:
+        if added:
+            console.print(
+                f"[green]{get_icon('success')} Added repository: {repo_path.name}[/]"
+            )
+        else:
+            console.print(
+                f"[yellow]{get_icon('warning')} Repository already tracked[/]"
+            )
+
+    payload = OutputPayload(
+        success=bool(added),
+        operation="init",
+        repos_total=1,
+        repos_success=1 if added else 0,
+        repos_failed=0 if added else 1,
+        results=[
+            RepoResult(
+                path=repo_info.path,
+                name=repo_info.name,
+                status="success" if added else "failed",
+                branch=repo_info.default_branch or "",
+                remote=RepoRemote(
+                    url=repo_info.remote_url or "",
+                    ahead=0,
+                    behind=0,
+                ),
+                commit=RepoCommit(
+                    hash=repo_info.last_commit or "",
+                    message="",
+                    author="",
+                    timestamp="",
+                ),
+            )
+        ],
+        errors=[] if added else ["already_tracked"],
+    )
+    formatter.emit(payload)
 
 
-def remove_command(args):
+def remove_command(args, formatter, json_mode: bool, quiet: bool):
     """Remove a repository from tracking"""
+    rich_enabled = not (json_mode or quiet)
     config_manager = ConfigManager()
     repo_path = Path(args.path).expanduser().resolve()
 
-    if config_manager.remove_repo(str(repo_path)):
-        console.print(
-            f"[green]{get_icon('success')} Removed repository: {repo_path}[/]"
-        )
-    else:
-        console.print(f"[yellow]{get_icon('warning')} Repository not tracked[/]")
+    removed = config_manager.remove_repo(str(repo_path))
+
+    if rich_enabled:
+        if removed:
+            console.print(
+                f"[green]{get_icon('success')} Removed repository: {repo_path}[/]"
+            )
+        else:
+            console.print(f"[yellow]{get_icon('warning')} Repository not tracked[/]")
+
+    payload = OutputPayload(
+        success=bool(removed),
+        operation="init",
+        repos_total=1,
+        repos_success=1 if removed else 0,
+        repos_failed=0 if removed else 1,
+        results=[
+            RepoResult(
+                path=str(repo_path),
+                name=repo_path.name,
+                status="success" if removed else "failed",
+            )
+        ],
+        errors=[] if removed else ["not_tracked"],
+    )
+    formatter.emit(payload)
 
 
 def main():
@@ -314,6 +569,19 @@ def main():
     parser = argparse.ArgumentParser(
         description="Initialize and manage Iskra configuration",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    # Global output flags
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON instead of Rich UI.",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Suppress Rich UI and output only JSON.",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -348,16 +616,21 @@ def main():
 
     args = parser.parse_args()
 
+    json_mode = bool(getattr(args, "json", False))
+    quiet = bool(getattr(args, "quiet", False))
+    formatter = get_formatter(json_mode=json_mode, quiet=quiet, console=console)
+
     if args.command == "init":
-        init_command(args)
+        init_command(args, formatter, json_mode, quiet)
     elif args.command == "list":
-        list_command(args)
+        list_command(args, formatter, json_mode, quiet)
     elif args.command == "add":
-        add_command(args)
+        add_command(args, formatter, json_mode, quiet)
     elif args.command == "remove":
-        remove_command(args)
+        remove_command(args, formatter, json_mode, quiet)
     else:
-        parser.print_help()
+        # No command: just help; no JSON emission here on purpose
+        console.print(parser.format_help())
 
 
 if __name__ == "__main__":

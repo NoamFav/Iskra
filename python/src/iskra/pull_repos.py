@@ -16,9 +16,8 @@ from .output.formatter import (
     get_formatter,
     OutputPayload,
     RepoResult,
-    RepoChanges,
+    RepoStatusType,
     RepoRemote,
-    RepoCommit,
 )
 
 # Install better traceback handling
@@ -85,6 +84,7 @@ def main():
     argcomplete.autocomplete(parser)
 
     base_dir = args.base_dir
+    formatter = get_formatter(json_mode=args.json, quiet=args.quiet, console=console)
 
     # Print the header
     print_header("GitHub Repository Clone Manager", title="GitHub Clone Manager")
@@ -108,37 +108,85 @@ def main():
         exclude=args.exclude,
     )
 
-    # Show summary
-    summary_panel = Panel(
-        f"{get_icon('github')} Found [bold green]{len(repositories)}[/] repositories to process\n"
-        + f"{get_icon('folder')} Target directory: [bold blue]{base_dir}[/]",
-        title="Repository Summary",
-        border_style="blue",
-    )
-    console.print(summary_panel)
+    repo_results: list[RepoResult] = []
+    errors: list[str] = []
+    success_count = 0
+    total = len(repositories)
 
-    # Process repositories
+    # Show summary (Rich only)
+    if not (args.json or args.quiet):
+        summary_panel = Panel(
+            f"{get_icon('github')} Found [bold green]{total}[/] repositories to process\n"
+            + f"{get_icon('folder')} Target directory: [bold blue]{base_dir}[/]",
+            title="Repository Summary",
+            border_style="blue",
+        )
+        console.print(summary_panel)
+
     if repositories:
-        console.print(f"[bold blue]Processing {len(repositories)} repositories...[/]")
+        if not (args.json or args.quiet):
+            console.print(f"[bold blue]Processing {total} repositories...[/]")
 
-        success_count = 0
         for idx, repo in enumerate(repositories, 1):
-            if process_repository(repo, base_dir, len(repositories), idx):
+            ok = process_repository(repo, base_dir, total, idx)
+
+            if ok:
                 success_count += 1
 
-        # Final summary
-        console.print()
-        final_panel = Panel(
-            f"{get_icon('sparkles')} [bold]{success_count}/{len(repositories)}[/] repositories processed successfully {get_icon('sparkles')}",
-            border_style="green" if success_count == len(repositories) else "yellow",
-            title="Processing Complete",
-            title_align="center",
-        )
-        console.print(final_panel)
+            status: RepoStatusType = "success" if ok else "failed"
+            # For pull_repos, most fields stay default/empty,
+            # but the schema is still respected.
+            repo_name = repo.get("name", "")
+            repo_short_name = repo_name or repo.get("nameWithOwner", "").split("/")[-1]
+            repo_path = os.path.join(base_dir, repo_short_name)
+
+            repo_results.append(
+                RepoResult(
+                    path=repo_path,
+                    name=repo_name or repo_short_name,
+                    status=status,
+                    # branch/changes/commit remain default for pure clone
+                    remote=RepoRemote(
+                        url=repo.get("url", ""),
+                        ahead=0,
+                        behind=0,
+                    ),
+                    # error is None here; if you want, you can later plumb
+                    # a message out of process_repository.
+                    error=None if ok else "clone_failed",
+                )
+            )
+
+        # Final summary (Rich only)
+        if not (args.json or args.quiet):
+            console.print()
+            final_panel = Panel(
+                f"{get_icon('sparkles')} [bold]{success_count}/{total}[/] repositories "
+                f"processed successfully {get_icon('sparkles')}",
+                border_style="green" if success_count == total else "yellow",
+                title="Processing Complete",
+                title_align="center",
+            )
+            console.print(final_panel)
     else:
-        console.print(
-            f"[bold yellow]{get_icon('warning')} No repositories found to process[/]"
-        )
+        # No repositories at all
+        if not (args.json or args.quiet):
+            console.print(
+                f"[bold yellow]{get_icon('warning')} No repositories found to process[/]"
+            )
+
+    # Build and emit JSON/console payload
+    payload = OutputPayload(
+        success=(success_count == total and total > 0),
+        operation="pull",
+        repos_total=total,
+        repos_success=success_count,
+        repos_failed=total - success_count,
+        results=repo_results,
+        errors=errors,
+    )
+
+    formatter.emit(payload)
 
 
 if __name__ == "__main__":

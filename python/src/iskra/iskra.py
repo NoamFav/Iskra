@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Enhanced iskra.py with Iskra configuration system integration
+Enhanced auto_commit.py with Iskra configuration system integration
+and JSON/quiet output support.
 """
 
 import os
 import subprocess
 import argparse
 from datetime import datetime
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
@@ -16,6 +18,15 @@ from iskra.ui.display import process_repository
 from iskra.ui.formatting import print_header, get_icon
 from iskra.core.repo_scanner import find_git_repos
 from iskra.core.constants import ICONS
+
+from iskra.output.formatter import (
+    get_formatter,
+    OutputPayload,
+    RepoResult,
+    RepoChanges,
+    RepoRemote,
+    RepoCommit,
+)
 
 console = Console()
 
@@ -75,7 +86,26 @@ def main():
     parser.add_argument("--handle-gitignore", action="store_true")
     parser.add_argument("--remove-ds-store", action="store_true")
 
+    # Output mode
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON instead of Rich UI.",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Suppress Rich UI and output only JSON.",
+    )
+
     args = parser.parse_args()
+
+    json_mode = bool(getattr(args, "json", False))
+    quiet = bool(getattr(args, "quiet", False))
+    rich_enabled = not (json_mode or quiet)
+
+    formatter = get_formatter(json_mode=json_mode, quiet=quiet, console=console)
 
     # Load configuration
     if args.config:
@@ -110,10 +140,11 @@ def main():
     orig_cwd = os.getcwd()
 
     # Print header
-    print_header("Git Repository Manager")
+    if rich_enabled:
+        print_header("Git Repository Manager")
 
     # Show dry-run warning
-    if config.dry_run:
+    if config.dry_run and rich_enabled:
         console.print(
             Panel(
                 "[bold yellow]DRY RUN MODE[/]\n"
@@ -124,7 +155,7 @@ def main():
         )
 
     # Show status-only warning
-    if args.status_only:
+    if args.status_only and rich_enabled:
         console.print(
             Panel(
                 "[bold cyan]STATUS ONLY MODE[/]\n"
@@ -135,13 +166,13 @@ def main():
         )
 
     # Get repositories - smart default behavior
-
     tracked_repos = config_manager.get_all_repos(active_only=True)
 
     # Use tracked repos if available, unless --scan is specified
     if args.scan or not tracked_repos:
         # Scan for repositories
-        console.print("[bold blue]Scanning for Git repositories...[/]")
+        if rich_enabled:
+            console.print("[bold blue]Scanning for Git repositories...[/]")
 
         git_repo_paths = find_git_repos(
             base_dir=base_dir,
@@ -154,12 +185,30 @@ def main():
         git_repos = [(path, os.path.relpath(path, base_dir)) for path in git_repo_paths]
 
         if not args.scan and not git_repos:
-            console.print(f"\n[yellow]{get_icon('warning')} No repositories found[/]")
-            console.print(f"[dim]Run 'iskra-init init' to track repositories[/]")
+            if rich_enabled:
+                console.print(
+                    f"\n[yellow]{get_icon('warning')} No repositories found[/]"
+                )
+                console.print(f"[dim]Run 'iskra-init init' to track repositories[/]")
+
+            # Still emit JSON payload
+            payload = OutputPayload(
+                success=True,
+                operation="status" if args.status_only else "commit",
+                repos_total=0,
+                repos_success=0,
+                repos_failed=0,
+                results=[],
+                errors=[],
+            )
+            formatter.emit(payload)
             return
     else:
         # Use tracked repositories
-        console.print(f"[bold blue]Using {len(tracked_repos)} tracked repositories[/]")
+        if rich_enabled:
+            console.print(
+                f"[bold blue]Using {len(tracked_repos)} tracked repositories[/]"
+            )
 
         # Apply filters to tracked repos
         git_repos = []
@@ -182,31 +231,51 @@ def main():
 
             git_repos.append((repo_path, repo_name))
 
-        console.print(
-            f"[bold green]Selected {len(git_repos)} repositories after filters[/]"
-        )
+        if rich_enabled:
+            console.print(
+                f"[bold green]Selected {len(git_repos)} repositories after filters[/]"
+            )
 
     # Show summary
-    summary_panel = Panel(
-        f"{get_icon('folder')} Found [bold green]{len(git_repos)}[/] repositories to process",
-        title="Repository Summary",
-        border_style="blue",
-    )
-    console.print(summary_panel)
+    if rich_enabled:
+        summary_panel = Panel(
+            f"{get_icon('folder')} Found [bold green]{len(git_repos)}[/] repositories to process",
+            title="Repository Summary",
+            border_style="blue",
+        )
+        console.print(summary_panel)
 
     # Require confirmation if enabled
     if config.require_confirmation and not args.yes:
-        if not Confirm.ask(f"Process {len(git_repos)} repositories?", default=True):
-            console.print("[yellow]Cancelled[/]")
-            return
+        if rich_enabled:
+            if not Confirm.ask(f"Process {len(git_repos)} repositories?", default=True):
+                console.print("[yellow]Cancelled[/]")
+
+                payload = OutputPayload(
+                    success=False,
+                    operation="status" if args.status_only else "commit",
+                    repos_total=len(git_repos),
+                    repos_success=0,
+                    repos_failed=0,
+                    results=[],
+                    errors=["cancelled_by_user"],
+                )
+                formatter.emit(payload)
+                return
+        else:
+            # Non-interactive mode: treat as auto-yes
+            pass
 
     # Process repositories
-    console.print(f"[bold blue]Processing {len(git_repos)} repositories...[/]\n")
+    if rich_enabled:
+        console.print(f"[bold blue]Processing {len(git_repos)} repositories...[/]\n")
+
     success_count = 0
+    repo_results = []
 
     for idx, (repo_path, display_name) in enumerate(git_repos, 1):
-        console.print(f"\n[bold cyan]Repository {idx}/{len(git_repos)}:[/]")
-
+        if rich_enabled:
+            console.print(f"\n[bold cyan]Repository {idx}/{len(git_repos)}:[/]")
         # Get repo-specific config (merges with global)
         repo_config = config_manager.merge_config(repo_path)
 
@@ -218,8 +287,17 @@ def main():
                 ["git", "status", "--porcelain"], capture_output=True, text=True
             )
             if not result.stdout.strip():
-                console.print(f"[dim]{get_icon('info')} No changes, skipping[/]")
+                if rich_enabled:
+                    console.print(f"[dim]{get_icon('info')} No changes, skipping[/]")
                 os.chdir(orig_cwd)
+
+                repo_results.append(
+                    RepoResult(
+                        path=repo_path,
+                        name=display_name,
+                        status="skipped",
+                    )
+                )
                 continue
 
         # Create args object for process_repository
@@ -263,15 +341,26 @@ def main():
                         repo_path, last_commit=result.stdout.strip()
                     )
 
-    # Final summary
-    console.print()
-    final_panel = Panel(
-        f"{get_icon('sparkles')} [bold]{success_count}/{len(git_repos)}[/] repositories processed successfully {get_icon('sparkles')}",
-        border_style="green" if success_count == len(git_repos) else "yellow",
-        title="Processing Complete",
-        title_align="center",
-    )
-    console.print(final_panel)
+        # Minimal JSON info per repo; deeper stats can be added later
+        repo_results.append(
+            RepoResult(
+                path=repo_path,
+                name=display_name,
+                status="success" if ok else "failed",
+                # You could later fill branch/commit/remote here if needed
+            )
+        )
+
+    # Final summary (Rich)
+    if rich_enabled:
+        console.print()
+        final_panel = Panel(
+            f"{get_icon('sparkles')} [bold]{success_count}/{len(git_repos)}[/] repositories processed successfully {get_icon('sparkles')}",
+            border_style="green" if success_count == len(git_repos) else "yellow",
+            title="Processing Complete",
+            title_align="center",
+        )
+        console.print(final_panel)
 
     # Log to file
     log_file = config_manager.get_log_file("iskra")
@@ -284,6 +373,18 @@ def main():
         if config.dry_run:
             f.write("Mode: DRY RUN\n")
         f.write(f"{'='*80}\n")
+
+    # Emit JSON / console payload
+    payload = OutputPayload(
+        success=(success_count == len(git_repos)),
+        operation="status" if args.status_only else "commit",
+        repos_total=len(git_repos),
+        repos_success=success_count,
+        repos_failed=len(git_repos) - success_count,
+        results=repo_results,
+        errors=[],
+    )
+    formatter.emit(payload)
 
 
 if __name__ == "__main__":
