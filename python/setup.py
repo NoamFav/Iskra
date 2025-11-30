@@ -4,7 +4,7 @@ from setuptools.command.build_py import build_py as _build_py
 
 ROOT = pathlib.Path(__file__).resolve().parent  # python/
 GO_CLI_DIR = ROOT / "gocli"
-PKG_BIN_DIR = ROOT / "src" / "auto_commit" / "bin"
+PKG_BIN_DIR = ROOT / "src" / "iskra" / "bin"
 
 
 class build_py(_build_py):
@@ -20,7 +20,7 @@ class build_py(_build_py):
         env = os.environ.copy()
         env.setdefault("GO111MODULE", "on")
         subprocess.run(
-            ["go", "build", "-o", str(out), "./cmd/auto_commit"],
+            ["go", "build", "-o", str(out), "./cmd/iskra"],
             cwd=str(GO_CLI_DIR),
             check=True,
             env=env,
@@ -44,7 +44,7 @@ setup(
     package_dir={"": "src"},
     # Include the compiled binary
     package_data={
-        "auto_commit": ["bin/*"],
+        "iskra": ["bin/*"],
     },
     # Python version requirement
     python_requires=">=3.8",
@@ -66,10 +66,10 @@ setup(
     # Entry points for command-line scripts
     entry_points={
         "console_scripts": [
-            "iskra=auto_commit.auto_commit:main",
-            "pull-repos=auto_commit.pull_repos:main",
-            "ai_commit=auto_commit.ai_commit:main",
-            "iskra-init=auto_commit.init:main",
+            "iskra=iskra.iskra:main",
+            "pull-repos=iskra.pull_repos:main",
+            "ai_commit=iskra.ai_commit:main",
+            "iskra-init=iskra.init:main",
         ],
     },
     # Build command customization

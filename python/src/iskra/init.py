@@ -14,10 +14,10 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.prompt import Confirm, Prompt
 
-from auto_commit.config import ConfigManager, RepoInfo, GlobalConfig
-from auto_commit.core.repo_scanner import find_git_repos
-from auto_commit.core.constants import ICONS
-from auto_commit.ui.formatting import get_icon
+from iskra.config import ConfigManager, RepoInfo, GlobalConfig
+from iskra.core.repo_scanner import find_git_repos
+from iskra.core.constants import ICONS
+from iskra.ui.formatting import get_icon
 
 console = Console()
 

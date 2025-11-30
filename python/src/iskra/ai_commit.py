@@ -4,7 +4,7 @@ from importlib.resources import files
 
 def _binary_path():
     name = "ai_commit.exe" if os.name == "nt" else "ai_commit"
-    return str(files("auto_commit").joinpath("bin", name))
+    return str(files("iskra").joinpath("bin", name))
 
 
 def main():

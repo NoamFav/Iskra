@@ -1,3 +1,3 @@
-module autocommit_gocli
+module iskra_gocli
 
 go 1.22

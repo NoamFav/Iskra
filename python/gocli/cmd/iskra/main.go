@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"autocommit_gocli/internal/git"
-	"autocommit_gocli/internal/llm"
+	"iskra_gocli/internal/git"
+	"iskra_gocli/internal/llm"
 )
 
 func firstLine(s string) string {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced auto_commit.py with Iskra configuration system integration
+Enhanced iskra.py with Iskra configuration system integration
 """
 
 import os
@@ -11,11 +11,11 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
 
-from auto_commit.config import ConfigManager, get_config
-from auto_commit.ui.display import process_repository
-from auto_commit.ui.formatting import print_header, get_icon
-from auto_commit.core.repo_scanner import find_git_repos
-from auto_commit.core.constants import ICONS
+from iskra.config import ConfigManager, get_config
+from iskra.ui.display import process_repository
+from iskra.ui.formatting import print_header, get_icon
+from iskra.core.repo_scanner import find_git_repos
+from iskra.core.constants import ICONS
 
 console = Console()
 
