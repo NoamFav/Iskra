@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""
-Main entry point for pull_repos (GitHub cloning).
-
-This module provides a command-line interface for bulk cloning GitHub repositories
-with filtering capabilities, progress visualization, and dual output modes (Rich UI
-and JSON). It fetches repositories via GitHub's GraphQL API and manages the cloning
-process with detailed status reporting.
-"""
+""""""
 
 import os
 import argparse
@@ -36,26 +29,7 @@ console = Console()
 
 
 def main():
-    """
-    Main function with enhanced CLI and visualization.
-
-    Orchestrates the complete workflow for bulk GitHub repository cloning:
-    1. Parses command-line arguments with autocomplete support
-    2. Configures output formatter (Rich UI or JSON)
-    3. Displays configuration summary
-    4. Fetches repositories from GitHub API with filters
-    5. Processes each repository (clone/update)
-    6. Reports results in requested format
-
-    Exit Codes:
-        0: All repositories processed successfully
-        1: One or more repositories failed (or exception occurred)
-        130: User interrupted with Ctrl+C
-
-    Note:
-        Authentication is handled via GITHUB_TOKEN environment variable.
-        See github.api module for authentication details.
-    """
+    """"""
     parser = argparse.ArgumentParser(
         description="Clone GitHub repositories with rich visual interface.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

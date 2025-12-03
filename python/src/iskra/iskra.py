@@ -1,21 +1,5 @@
 #!/usr/bin/env python3
-"""
-Enhanced auto_commit.py with Iskra configuration system integration
-and JSON/quiet output support.
-
-This module provides the main command-line interface for Iskra's automated
-git operations. It integrates with the configuration system to manage multiple
-repositories, supports both tracked and scanned repository discovery, and offers
-flexible commit automation with AI-powered commit messages.
-
-Key Features:
-    - Configuration-based repository management
-    - Smart repository discovery (tracked vs. scanned)
-    - AI-powered commit message generation
-    - Dry-run mode for safe testing
-    - Status-only mode for repository inspection
-    - Dual output modes (Rich UI and JSON)
-"""
+""""""
 
 import os
 import subprocess
@@ -46,32 +30,7 @@ console = Console()
 
 
 def main():
-    """
-    Enhanced main function with configuration system integration.
-
-    Orchestrates the complete Iskra workflow:
-    1. Parses command-line arguments with extensive configuration options
-    2. Loads and merges configuration (file + CLI overrides)
-    3. Discovers repositories (tracked or scanned based on mode)
-    4. Applies filtering rules (include/exclude patterns)
-    5. Processes each repository with git operations
-    6. Logs results and emits output in requested format
-
-    Configuration Priority (highest to lowest):
-        1. Command-line arguments (--dir, --no-push, etc.)
-        2. Profile-specific configuration (--profile)
-        3. Global configuration file
-        4. Built-in defaults
-
-    Exit Codes:
-        0: All repositories processed successfully
-        1: One or more repositories failed
-        130: User interrupted with Ctrl+C
-
-    Note:
-        The function maintains backward compatibility with legacy flags
-        while integrating with the new configuration system.
-    """
+    """"""
     parser = argparse.ArgumentParser(
         description="Iskra - Intelligent Git automation with configuration management",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -387,12 +346,7 @@ def main():
         # Create arguments object for process_repository
         # Bridges between command-line args and function interface
         class RepoArgs:
-            """
-            Internal argument container for repository processing.
-
-            Merges repository-specific config with command-line arguments
-            to provide a unified configuration object for process_repository.
-            """
+            """"""
 
             def __init__(self, config, args_orig):
                 self.pull = config.auto_pull

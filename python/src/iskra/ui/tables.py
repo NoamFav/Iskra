@@ -1,75 +1,11 @@
-"""
-Table creation utilities for Rich UI display.
-
-Provides reusable functions for creating formatted configuration tables
-that display command-line arguments and settings in a user-friendly format.
-These tables appear at the start of operations to confirm settings before
-processing begins.
-
-Design Philosophy:
-    - Consistent visual styling across all commands
-    - Clear presentation of active settings
-    - Conditional rows based on context (pull_repos vs auto_commit)
-    - Human-readable value formatting
-"""
+""""""
 
 from rich.table import Table
 from rich.box import ROUNDED
 
 
 def create_config_table(args, for_pull_repos=False):
-    """
-        Create a configuration summary table for display.
-
-        Generates a Rich table showing the current configuration settings
-        based on parsed command-line arguments. The table content adapts
-        based on which command is being run (pull_repos vs auto_commit).
-
-        Args:
-            args: Parsed argparse.Namespace containing command-line arguments
-            for_pull_repos: If True, show pull_repos settings (GitHub cloning)
-                           If False, show auto_commit settings (git automation)
-
-        Returns:
-            Rich Table object ready for console.print()
-
-        Table Structure:
-            ┌─────────────────────────────────────┐
-            │          Configuration              │
-            ├─────────────────┬──────────────────┤
-            │ Setting         │ Value            │
-            ├─────────────────┼──────────────────┤
-            │ Base Directory  │ ~/Neoware        │
-            │ Pull Changes    │ Yes              │
-            │ ...             │ ...              │
-            └─────────────────┴──────────────────┘
-
-        Styling:
-            - Title: Bold cyan - draws attention to configuration section
-            - Box: Rounded corners - modern, friendly appearance
-            - Border: Cyan - matches title for visual cohesion
-            - Setting names: Cyan - identifies configuration keys
-            - Values: Green - highlights active settings
-
-        Conditional Rows:
-            Only displays rows for relevant settings:
-            - Excluded patterns: Only shown if exclusions are configured
-            - Only patterns: Only shown if whitelist is configured
-            - Different settings for pull_repos vs auto_commit modes
-
-        Example Usage:
-    ```python
-            from iskra.ui.tables import create_config_table
-
-            table = create_config_table(args, for_pull_repos=True)
-            console.print(table)
-    ```
-
-        Note:
-            This function is purely presentational - it doesn't modify
-            configuration or validate arguments. It assumes args has
-            been properly parsed and validated by argparse.
-    """
+    """"""
     # Create table with consistent styling
     config_table = Table(
         title="Configuration",  # Header text

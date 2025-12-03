@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""
-Initialize Iskra configuration and scan for repositories,
-with JSON/quiet output support.
-
-This module provides the command-line interface for initializing and managing
-Iskra's repository tracking system. It supports both interactive Rich UI mode
-and machine-readable JSON output for automation and scripting.
-"""
+""""""
 
 import os
 import subprocess
@@ -37,26 +30,7 @@ console = Console()
 
 
 def get_git_info(repo_path: str) -> dict:
-    """
-    Extract git information from a repository.
-
-    Executes git commands to retrieve metadata about the repository including
-    remote URL, current branch, and latest commit hash. Changes to the repo
-    directory to execute git commands, then restores the original working directory.
-
-    Args:
-        repo_path: Absolute path to the git repository
-
-    Returns:
-        Dictionary containing:
-            - remote_url: Origin remote URL or None if not found
-            - default_branch: Current branch name or None if detached HEAD
-            - last_commit: SHA-1 hash of HEAD commit or None if no commits
-
-    Note:
-        This function temporarily changes the current working directory.
-        Directory is always restored via try/finally to prevent side effects.
-    """
+    """"""
     # Store original directory to restore later
     original_dir = os.getcwd()
     os.chdir(repo_path)
@@ -91,28 +65,7 @@ def get_git_info(repo_path: str) -> dict:
 
 
 def scan_repositories(base_dir: str, config: GlobalConfig) -> List[str]:
-    """
-    Scan for git repositories in base directory with visual feedback.
-
-    Recursively searches the base directory for git repositories, respecting
-    configured include/exclude patterns and depth limits. Provides Rich UI
-    feedback during scanning.
-
-    Args:
-        base_dir: Root directory to begin recursive search
-        config: GlobalConfig object containing scan parameters:
-            - only_patterns: Whitelist patterns (only scan matching repos)
-            - exclude_patterns: Blacklist patterns (skip matching repos)
-            - max_depth: Maximum directory depth to traverse
-            - follow_symlinks: Whether to follow symbolic links
-
-    Returns:
-        List of absolute paths to discovered git repositories
-
-    Note:
-        This function displays Rich console output and should not be called
-        when JSON/quiet mode is active.
-    """
+    """"""
     console.print(
         f"\n[bold blue]{get_icon('folder')} Scanning for repositories in {base_dir}...[/]"
     )
@@ -133,20 +86,7 @@ def scan_repositories(base_dir: str, config: GlobalConfig) -> List[str]:
 
 
 def display_repo_table(repos: List[RepoInfo]):
-    """
-    Display tracked repositories in a formatted table.
-
-    Creates a Rich table with repository metadata including name, path,
-    branch, remote URL, and active status. Handles truncation of long
-    values for clean terminal display.
-
-    Args:
-        repos: List of RepoInfo objects to display
-
-    Note:
-        Remote URLs longer than 50 characters are truncated with ellipsis.
-        This is purely cosmetic and doesn't affect the stored configuration.
-    """
+    """"""
     table = Table(
         title=f"{get_icon('project')} Tracked Repositories",
         show_header=True,
@@ -182,31 +122,7 @@ def display_repo_table(repos: List[RepoInfo]):
 
 
 def init_command(args, formatter, json_mode: bool, quiet: bool):
-    """
-    Initialize auto-commit configuration and discover repositories.
-
-    Primary initialization workflow that:
-    1. Sets up or loads existing configuration
-    2. Confirms/creates base directory
-    3. Optionally prompts for configuration options
-    4. Scans for git repositories
-    5. Tracks discovered repositories
-    6. Outputs results in requested format
-
-    Args:
-        args: Parsed command-line arguments containing:
-            - base_dir: Optional override for scan directory
-            - yes: Skip all confirmations, use defaults
-            - show_repos: Display repository table after init
-        formatter: Output formatter (Rich or JSON)
-        json_mode: If True, suppress Rich UI and output JSON
-        quiet: If True, suppress all non-JSON output
-
-    Side Effects:
-        - Creates/modifies configuration files in ~/.iskra/
-        - May create base_dir if it doesn't exist
-        - Writes repository tracking data to disk
-    """
+    """"""
     # Determine if Rich UI is enabled based on output mode
     rich_enabled = not (json_mode or quiet)
 
@@ -482,24 +398,7 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
 
 
 def list_command(args, formatter, json_mode: bool, quiet: bool):
-    """
-    List all tracked repositories with their current status.
-
-    Displays tracked repositories in either Rich table format or JSON,
-    depending on output mode. Can filter to show only active repos or
-    include inactive ones.
-
-    Args:
-        args: Parsed arguments containing:
-            - all: If True, include inactive repositories in output
-        formatter: Output formatter (Rich or JSON)
-        json_mode: If True, output JSON instead of Rich table
-        quiet: If True, suppress all non-JSON output
-
-    Note:
-        When no repositories are tracked, provides helpful hint to run
-        'iskra init' for first-time setup.
-    """
+    """"""
     rich_enabled = not (json_mode or quiet)
     config_manager = ConfigManager()
     # Load repos, optionally filtering to active only
@@ -566,28 +465,7 @@ def list_command(args, formatter, json_mode: bool, quiet: bool):
 
 
 def add_command(args, formatter, json_mode: bool, quiet: bool):
-    """
-    Add a single repository to tracking.
-
-    Validates that the provided path is a git repository, extracts its
-    metadata, and adds it to the tracked repository list. Handles
-    duplicate tracking attempts gracefully.
-
-    Args:
-        args: Parsed arguments containing:
-            - path: Path to git repository to add
-        formatter: Output formatter (Rich or JSON)
-        json_mode: If True, output JSON instead of Rich messages
-        quiet: If True, suppress all non-JSON output
-
-    Returns:
-        Exits with success if repo was added or already tracked,
-        fails if path is not a valid git repository.
-
-    Note:
-        Path is expanded (resolves ~) and converted to absolute before
-        processing to ensure consistent repository identification.
-    """
+    """"""
     rich_enabled = not (json_mode or quiet)
     config_manager = ConfigManager()
     # Expand ~ and resolve to absolute path for consistency
@@ -676,25 +554,7 @@ def add_command(args, formatter, json_mode: bool, quiet: bool):
 
 
 def remove_command(args, formatter, json_mode: bool, quiet: bool):
-    """
-    Remove a repository from tracking.
-
-    Removes the specified repository from Iskra's tracking configuration.
-    Does not delete the actual repository files, only removes it from
-    the managed repository list.
-
-    Args:
-        args: Parsed arguments containing:
-            - path: Path to repository to remove from tracking
-        formatter: Output formatter (Rich or JSON)
-        json_mode: If True, output JSON instead of Rich messages
-        quiet: If True, suppress all non-JSON output
-
-    Note:
-        This operation only affects Iskra's configuration. The git
-        repository itself remains untouched on disk. To re-track,
-        use 'iskra add' or re-run 'iskra init'.
-    """
+    """"""
     rich_enabled = not (json_mode or quiet)
     config_manager = ConfigManager()
     # Expand and resolve path for consistent lookup
@@ -732,35 +592,7 @@ def remove_command(args, formatter, json_mode: bool, quiet: bool):
 
 
 def main():
-    """
-    Main entry point for init commands.
-
-    Parses command-line arguments and dispatches to the appropriate
-    command handler (init, list, add, remove). Supports both interactive
-    Rich UI mode and machine-readable JSON output.
-
-    Command Structure:
-        iskra [--json] [--quiet] <command> [command-args]
-
-    Global Flags:
-        --json: Output structured JSON instead of Rich UI
-        --quiet: Suppress all output except JSON
-
-    Commands:
-        init: Initialize config and scan for repositories
-        list: Display all tracked repositories
-        add: Add a single repository to tracking
-        remove: Remove a repository from tracking
-
-    Exit Codes:
-        0: Success
-        1: General error (caught by exception handler)
-        130: User interrupted with Ctrl+C
-
-    Note:
-        All commands support dual output modes via formatter system.
-        JSON mode is intended for scripting and automation.
-    """
+    """"""
     parser = argparse.ArgumentParser(
         description="Initialize and manage Iskra configuration",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

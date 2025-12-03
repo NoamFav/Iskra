@@ -1,22 +1,4 @@
-"""
-GitHub repository cloning utilities.
-
-Provides functions for cloning repositories from GitHub using the GitHub CLI,
-with rich visual feedback, progress tracking, and repository statistics.
-Handles duplicate detection, error cases, and displays detailed information
-about cloned repositories.
-
-Key Features:
-    - Visual progress indicators during cloning
-    - Duplicate repository detection
-    - Repository statistics (size, file count, directory count)
-    - Detailed error reporting
-    - Rich UI with panels and tables
-
-Dependencies:
-    - GitHub CLI (gh): For cloning repositories
-    - Rich: For visual output
-"""
+""""""
 
 import os
 import time
@@ -34,64 +16,7 @@ console = Console()
 
 
 def get_repo_size_str(repo_dir):
-    """
-        Get the size of a repository in human-readable format.
-
-        Recursively walks the repository directory tree, calculating
-        total size of all files. Formats the result with appropriate
-        units (B, KB, MB, GB, TB) for readability.
-
-        Args:
-            repo_dir: Absolute path to repository directory
-
-        Returns:
-            Human-readable size string (e.g., "15.43 MB", "2.31 GB")
-
-        Size Calculation:
-            - Walks entire directory tree recursively
-            - Sums size of all regular files
-            - Skips symbolic links (doesn't follow, doesn't count)
-            - Includes .git directory in calculation
-
-        Units:
-            - B (Bytes): 0-1023 bytes
-            - KB (Kilobytes): 1024 bytes - 1023 KB
-            - MB (Megabytes): 1024 KB - 1023 MB
-            - GB (Gigabytes): 1024 MB - 1023 GB
-            - TB (Terabytes): 1024 GB and above
-
-        Example Usage:
-    ```python
-            size = get_repo_size_str("/path/to/repo")
-            print(f"Repository size: {size}")
-            # Output: "Repository size: 42.15 MB"
-    ```
-
-        Performance:
-            - O(n) where n = total number of files
-            - I/O bound operation (reads file metadata)
-            - Can be slow for large repositories (10,000+ files)
-            - Typical repo: <1 second
-            - Large monorepo: 5-10 seconds
-
-        Accuracy:
-            - Reports actual disk usage (sum of file sizes)
-            - Does NOT account for:
-              * Filesystem block size (can be larger)
-              * Sparse files (reports logical size)
-              * Compressed filesystems
-              * Hard links (counts each link separately)
-
-        Edge Cases:
-            - Empty directory: Returns "0 B"
-            - Symbolic links: Ignored (not followed or counted)
-            - Permission errors: May raise OSError
-            - Non-existent directory: Raises OSError
-
-        Note:
-            For very large repositories, consider caching this value
-            or computing it asynchronously to avoid blocking the UI.
-    """
+    """"""
     total_size = 0
 
     # Walk entire directory tree
@@ -127,100 +52,7 @@ def get_repo_size_str(repo_dir):
 
 
 def process_repository(repo_info, base_dir, total, current):
-    """
-        Clone a repository with visual enhancements and progress tracking.
-
-        Handles the complete repository cloning workflow including duplicate
-        detection, visual feedback, error handling, and post-clone statistics.
-        Provides rich UI elements for an excellent user experience.
-
-        Args:
-            repo_info: Dictionary containing repository metadata from GitHub API:
-                - nameWithOwner: Full name (e.g., "owner/repo")
-                - name: Short name (e.g., "repo")
-                - isPrivate: Boolean privacy status
-                - isFork: Boolean fork status
-                - stargazerCount: Number of stars
-                - description: Repository description text
-                - url: Repository URL
-            base_dir: Base directory where repository should be cloned
-            total: Total number of repositories being processed
-            current: Current repository number (for progress display)
-
-        Returns:
-            True if repository was cloned successfully or already exists
-            False if cloning failed with an error
-
-        Workflow:
-            1. Extract and format repository metadata
-            2. Display repository information panel
-            3. Check for existing repository (duplicate detection)
-            4. Clone repository if not exists
-            5. Display cloning time and statistics
-            6. Show visual separator
-
-        Visual Output:
-            - Repository panel with:
-              * Name with privacy/fork indicators
-              * Star count if any
-              * Description
-              * URL
-              * Progress indicator (X of N)
-            - Status messages during cloning
-            - Success message with timing
-            - Statistics table (directories, files, size)
-            - Error panel if cloning fails
-            - Visual separator between repositories
-
-        Duplicate Detection:
-            Uses find_repo_in_subdirs() to search for existing repo
-            anywhere under base_dir. Prevents:
-            - Duplicate clones in same directory
-            - Clones in subdirectories
-            - Wasted bandwidth and disk space
-
-        Error Handling:
-            - Catches subprocess.CalledProcessError from gh clone
-            - Displays stderr in error panel
-            - Returns False to indicate failure
-            - Allows batch processing to continue
-
-        Example Usage:
-    ```python
-            repo_info = {
-                "nameWithOwner": "user/awesome-project",
-                "name": "awesome-project",
-                "isPrivate": False,
-                "isFork": False,
-                "stargazerCount": 142,
-                "description": "An awesome project",
-                "url": "https://github.com/user/awesome-project"
-            }
-
-            success = process_repository(
-                repo_info=repo_info,
-                base_dir="/home/user/repos",
-                total=10,
-                current=1
-            )
-    ```
-
-        Performance:
-            - Network bound (git clone speed)
-            - Small repos: 5-30 seconds
-            - Large repos: 1-10 minutes
-            - Depends on network speed and repository size
-
-        Side Effects:
-            - Clones repository to base_dir/{repo_name}
-            - Prints Rich UI elements to console
-            - Temporarily changes working directory (via subprocess cwd)
-
-        Note:
-            This function is designed for sequential processing.
-            For parallel cloning, additional coordination would be needed
-            to avoid console output conflicts and directory collisions.
-    """
+    """"""
     # === EXTRACT REPOSITORY METADATA ===
 
     # Full name includes owner: "owner/repo"
