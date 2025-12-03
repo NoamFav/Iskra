@@ -1,5 +1,3 @@
-""""""
-
 import os
 import glob
 import random
@@ -7,7 +5,7 @@ import subprocess
 
 
 def generate_commit_message():
-    """"""
+
     # Action verbs commonly used in professional commit messages
     prefixes = [
         "Update",
@@ -54,7 +52,7 @@ def generate_commit_message():
 
 
 def handle_gitignore(entry_path):
-    """"""
+
     gitignore_path = os.path.join(entry_path, ".gitignore")
     gitignore_updated = False
 
@@ -85,7 +83,7 @@ def handle_gitignore(entry_path):
 
 
 def remove_ds_store_files():
-    """"""
+
     # Find all .DS_Store files recursively from current directory
     ds_store_files = glob.glob("**/.DS_Store", recursive=True)
 
@@ -100,7 +98,7 @@ def remove_ds_store_files():
 
 
 def get_current_branch():
-    """"""
+
     result = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         stdout=subprocess.PIPE,
@@ -112,7 +110,7 @@ def get_current_branch():
 
 
 def git_pull():
-    """"""
+
     return subprocess.run(
         ["git", "pull"],
         stdout=subprocess.PIPE,
@@ -123,12 +121,12 @@ def git_pull():
 
 
 def git_add_all():
-    """"""
+
     subprocess.run(["git", "add", "."], check=True)
 
 
 def git_status_porcelain():
-    """"""
+
     result = subprocess.run(
         ["git", "status", "--porcelain"],
         stdout=subprocess.PIPE,
@@ -139,12 +137,12 @@ def git_status_porcelain():
 
 
 def git_commit(message):
-    """"""
+
     subprocess.run(["git", "commit", "-a", "-m", message], check=True)
 
 
 def git_push():
-    """"""
+
     return subprocess.run(
         ["git", "push"],
         check=True,
@@ -155,7 +153,7 @@ def git_push():
 
 
 def git_show_last_commit():
-    """"""
+
     return subprocess.run(
         ["git", "show", "--stat", "--oneline", "-1"],
         check=True,
