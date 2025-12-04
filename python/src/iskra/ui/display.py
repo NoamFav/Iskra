@@ -28,28 +28,44 @@ console = Console()
 def process_repository(
     entry_path, entry, args, task_id=None, progress=None, orig_cwd=None
 ):
+    # Check if we should minimize output for clean repos
+    minimize_clean = getattr(args, "status_only", False)
 
-    repo_panel = Panel(
-        f"[bold cyan]{get_icon('project')} {entry}[/]",
-        border_style="blue",
-        title=f"[bold]Repository[/]",
-        title_align="left",
-        subtitle=f"[dim]{entry_path}[/]",
-        subtitle_align="right",
-    )
-    console.print(repo_panel)
-
-    start_time = time.time()
-
-    if progress and task_id:
-        progress.update(task_id, description=f"[cyan]Processing {entry}[/]")
-
+    # We'll determine if repo is clean first, then decide on display
     os.chdir(entry_path)
 
     try:
-
         current_branch = get_current_branch()
+        status_output = git_status_porcelain()
+        is_clean = status_output == ""
 
+        # For status-only mode with clean repos, show minimal info
+        if minimize_clean and is_clean:
+            console.print(
+                f"[dim]{get_icon('check')} {entry:<40} [green]✓ Clean[/green] [dim cyan]({current_branch})[/dim cyan][/dim]"
+            )
+            if progress and task_id:
+                progress.update(task_id, advance=1)
+            return True
+
+        # Full panel for repos with changes or when doing actual work
+        repo_panel = Panel(
+            f"[bold cyan]{get_icon('project')} {entry}[/]",
+            border_style="yellow" if not is_clean else "blue",
+            title=f"[bold]Repository[/]",
+            title_align="left",
+            subtitle=f"[dim]{entry_path}[/]",
+            subtitle_align="right",
+        )
+        console.print(repo_panel)
+    finally:
+        start_time = time.time()
+
+        if progress and task_id:
+            progress.update(task_id, description=f"[cyan]Processing {entry}[/]")
+
+    try:
+        # Branch info (already fetched above)
         branch_style = "magenta" if current_branch in ["main", "master"] else "yellow"
 
         branch_icon = (
@@ -72,6 +88,7 @@ def process_repository(
         status_table.add_column("Status", style="white")
         status_table.add_column("Details", style="green")
 
+        # Pull changes if requested (even in status-only mode)
         if args.pull:
             with console.status(
                 "[bold blue]Pulling latest changes...[/]", spinner="dots"
@@ -80,7 +97,67 @@ def process_repository(
             status_table.add_row(
                 get_icon("pull"), "Pulled changes", pull_result.stdout.strip()
             )
+            # Re-check status after pull
+            status_output = git_status_porcelain()
+            is_clean = status_output == ""
 
+        # Show current status
+        if is_clean:
+            console.print(f"[dim]{get_icon('info')} No changes in repository[/]")
+        else:
+            changes = status_output.split("\n")
+            tree = Tree(f"[bold yellow]{len(changes)} files changed[/]")
+
+            for change in changes:
+                if not change.strip():
+                    continue
+
+                status_code = change[:2].strip()
+                file_path = change[3:].strip()
+
+                if status_code == "M":
+                    status_text = "Modified"
+                    style = "blue"
+                elif status_code == "A":
+                    status_text = "Added"
+                    style = "green"
+                elif status_code == "D":
+                    status_text = "Deleted"
+                    style = "red"
+                elif status_code == "R":
+                    status_text = "Renamed"
+                    style = "magenta"
+                elif status_code == "??":
+                    status_text = "Untracked"
+                    style = "yellow"
+                else:
+                    status_text = status_code
+                    style = "white"
+
+                tree.add(
+                    f"[{style}]{get_file_icon(file_path)} {file_path}[/] "
+                    f"([bold {style}]{status_text}[/])"
+                )
+
+            console.print(tree)
+
+        if args.status_only:
+            console.print(
+                f"\n[bold cyan]{get_icon('info')} Status-only mode: skipping commit/push[/]"
+            )
+
+            end_time = time.time()
+            elapsed = end_time - start_time
+            console.print(
+                f"\n{get_icon('clock')} Processed in [bold cyan]{elapsed:.2f}[/] seconds"
+            )
+
+            if progress and task_id:
+                progress.update(task_id, advance=1)
+
+            return True
+
+        # Only proceed with commits if NOT in status-only mode
         if args.handle_gitignore:
             gitignore_updated = handle_gitignore(entry_path)
             if gitignore_updated:
@@ -102,93 +179,50 @@ def process_repository(
         if status_table.row_count > 0:
             console.print(status_table)
 
-        if args.use_ai_commit:
-
-            commit_message = (
-                args.commit_message
-                if args.commit_message != "auto-commit"
-                else generate_commit_message()
-            )
-
-            console.print(
-                f"\n[bold cyan]{get_icon('commit')} Using ai_commit command[/]"
-            )
-            console.print("[bold blue]Executing ai_commit...[/]")
-
-            result = subprocess.run(
-                ["ai_commit", commit_message],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-
-            if result.returncode == 0:
-                console.print(
-                    f"[bold green]{get_icon('success')} ai_commit executed successfully[/]"
+        # Only commit if there are changes
+        if status_output != "":
+            if args.use_ai_commit:
+                commit_message = (
+                    args.commit_message
+                    if args.commit_message != "auto-commit"
+                    else generate_commit_message()
                 )
-                if result.stdout.strip():
+
+                console.print(
+                    f"\n[bold cyan]{get_icon('commit')} Using ai_commit command[/]"
+                )
+                console.print("[bold blue]Executing ai_commit...[/]")
+
+                result = subprocess.run(
+                    ["ai_commit", commit_message],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+
+                if result.returncode == 0:
                     console.print(
-                        Panel(
-                            result.stdout.strip(),
-                            title="ai_commit output",
-                            border_style="green",
+                        f"[bold green]{get_icon('success')} ai_commit executed successfully[/]"
+                    )
+                    if result.stdout.strip():
+                        console.print(
+                            Panel(
+                                result.stdout.strip(),
+                                title="ai_commit output",
+                                border_style="green",
+                            )
                         )
-                    )
+                else:
+                    console.print(f"[bold red]{get_icon('error')} ai_commit failed[/]")
+                    if result.stderr.strip():
+                        console.print(
+                            Panel(
+                                result.stderr.strip(), title="Error", border_style="red"
+                            )
+                        )
             else:
-                console.print(f"[bold red]{get_icon('error')} ai_commit failed[/]")
-                if result.stderr.strip():
-                    console.print(
-                        Panel(result.stderr.strip(), title="Error", border_style="red")
-                    )
-        else:
-
-            console.print("[bold blue]Staging changes...[/]")
-            git_add_all()
-
-            status_output = git_status_porcelain()
-
-            if status_output == "":
-
-                console.print(f"[dim]{get_icon('info')} No changes to commit[/]")
-            else:
-
-                changes = status_output.split("\n")
-
-                tree = Tree(f"[bold yellow]{len(changes)} files changed[/]")
-
-                for change in changes:
-                    if not change.strip():
-                        continue
-
-                    status_code = change[:2].strip()
-                    file_path = change[3:].strip()
-
-                    if status_code == "M":
-                        status_text = "Modified"
-                        style = "blue"
-                    elif status_code == "A":
-                        status_text = "Added"
-                        style = "green"
-                    elif status_code == "D":
-                        status_text = "Deleted"
-                        style = "red"
-                    elif status_code == "R":
-                        status_text = "Renamed"
-                        style = "magenta"
-                    elif status_code == "??":
-                        status_text = "Untracked"
-                        style = "yellow"
-                    else:
-
-                        status_text = status_code
-                        style = "white"
-
-                    tree.add(
-                        f"[{style}]{get_file_icon(file_path)} {file_path}[/] "
-                        f"([bold {style}]{status_text}[/])"
-                    )
-
-                console.print(tree)
+                console.print("[bold blue]Staging changes...[/]")
+                git_add_all()
 
                 commit_message = (
                     args.commit_message
@@ -229,7 +263,6 @@ def process_repository(
                             f"[bold cyan]{get_icon('push')} Changes pushed to remote repository[/]"
                         )
                 elif hasattr(args, "auto_push"):
-
                     console.print(
                         f"[dim]{get_icon('info')} Skipping push (auto_push disabled)[/]"
                     )

@@ -6,6 +6,7 @@ from datetime import datetime
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
+from rich.table import Table
 
 from iskra.config import ConfigManager, get_config
 from iskra.ui.display import process_repository
@@ -65,6 +66,11 @@ def main():
         "--status-only", action="store_true", help="Only show status, don't commit"
     )
     parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="Minimize output for clean repositories (one line per clean repo)",
+    )
+    parser.add_argument(
         "-y", "--yes", action="store_true", help="Skip all confirmations"
     )
     parser.add_argument(
@@ -85,8 +91,6 @@ def main():
         action="store_true",
         help="Suppress Rich UI and output only JSON.",
     )
-
-    parser.add_argument("status", action="store_true", help="Show status")
 
     args = parser.parse_args()
 
@@ -143,10 +147,15 @@ def main():
         )
 
     if args.status_only and rich_enabled:
+        mode_text = "[bold cyan]STATUS ONLY MODE[/]\n"
+        if args.compact:
+            mode_text += "Clean repositories will be shown in compact format"
+        else:
+            mode_text += "Will only display repository status"
+
         console.print(
             Panel(
-                "[bold cyan]STATUS ONLY MODE[/]\n"
-                "Will only display repository status",
+                mode_text,
                 border_style="cyan",
                 title="ℹ️  Info",
             )
@@ -247,13 +256,22 @@ def main():
             pass
 
     if rich_enabled:
-        console.print(f"[bold blue]Processing {len(git_repos)} repositories...[/]\n")
+        if args.compact and args.status_only:
+            console.print(
+                f"[bold blue]Processing {len(git_repos)} repositories (compact mode)...[/]\n"
+            )
+        else:
+            console.print(
+                f"[bold blue]Processing {len(git_repos)} repositories...[/]\n"
+            )
 
     success_count = 0
+    clean_count = 0
+    dirty_count = 0
     repo_results = []
 
     for idx, (repo_path, display_name) in enumerate(git_repos, 1):
-        if rich_enabled:
+        if rich_enabled and not args.compact:
             console.print(f"\n[bold cyan]Repository {idx}/{len(git_repos)}:[/]")
 
         repo_config = config_manager.merge_config(repo_path)
@@ -288,6 +306,7 @@ def main():
                 self.commit_message = args_orig.commit_message
                 self.dry_run = config.dry_run
                 self.status_only = args_orig.status_only
+                self.compact = getattr(args_orig, "compact", False)
                 self.show_diff = config.show_diff
                 self.auto_push = config.auto_push
 
@@ -328,13 +347,53 @@ def main():
 
     if rich_enabled:
         console.print()
-        final_panel = Panel(
-            f"{get_icon('sparkles')} [bold]{success_count}/{len(git_repos)}[/] repositories processed successfully {get_icon('sparkles')}",
-            border_style="green" if success_count == len(git_repos) else "yellow",
-            title="Processing Complete",
-            title_align="center",
-        )
-        console.print(final_panel)
+
+        # Summary table with clean vs dirty breakdown
+        if args.status_only and args.compact:
+            # Count clean vs dirty repos
+            for repo_path, _ in git_repos:
+                os.chdir(repo_path)
+                status_output = subprocess.run(
+                    ["git", "status", "--porcelain"], capture_output=True, text=True
+                ).stdout.strip()
+                if status_output:
+                    dirty_count += 1
+                else:
+                    clean_count += 1
+                os.chdir(orig_cwd)
+
+            summary_table = Table(show_header=False, box=None, padding=(0, 2))
+            summary_table.add_column("Label", style="cyan")
+            summary_table.add_column("Count", style="bold")
+
+            summary_table.add_row(
+                f"{get_icon('check')} Clean repositories:",
+                f"[green]{clean_count}[/green]",
+            )
+            summary_table.add_row(
+                f"{get_icon('warning')} Repositories with changes:",
+                f"[yellow]{dirty_count}[/yellow]",
+            )
+            summary_table.add_row(
+                f"{get_icon('folder')} Total processed:",
+                f"[blue]{len(git_repos)}[/blue]",
+            )
+
+            console.print(
+                Panel(
+                    summary_table,
+                    title="Summary",
+                    border_style="blue",
+                )
+            )
+        else:
+            final_panel = Panel(
+                f"{get_icon('sparkles')} [bold]{success_count}/{len(git_repos)}[/] repositories processed successfully {get_icon('sparkles')}",
+                border_style="green" if success_count == len(git_repos) else "yellow",
+                title="Processing Complete",
+                title_align="center",
+            )
+            console.print(final_panel)
 
     log_file = config_manager.get_log_file("iskra")
 
@@ -346,6 +405,10 @@ def main():
         f.write(f"Base dir: {base_dir}\n")
         if config.dry_run:
             f.write("Mode: DRY RUN\n")
+        if args.status_only:
+            f.write("Mode: STATUS ONLY\n")
+        if args.compact:
+            f.write("Display: COMPACT\n")
         f.write(f"{'='*80}\n")
 
     payload = OutputPayload(
