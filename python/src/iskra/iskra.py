@@ -86,6 +86,8 @@ def main():
         help="Suppress Rich UI and output only JSON.",
     )
 
+    parser.add_argument("status", action="store_true", help="Show status")
+
     args = parser.parse_args()
 
     json_mode = bool(getattr(args, "json", False))
