@@ -600,12 +600,20 @@ def main(argv: list[str] | None = None):
         "--show-repos", action="store_true", help="Show tracked repos after init"
     )
 
-    list_parser = subparsers.add_parser("list", help="List tracked repositories")
+    list_parser = subparsers.add_parser(
+        "list",
+        aliases=["ls"],
+        help="List tracked repositories",
+    )
     list_parser.add_argument(
         "--all", action="store_true", help="Include inactive repos"
     )
 
-    add_parser = subparsers.add_parser("add", help="Add a repository to tracking")
+    add_parser = subparsers.add_parser(
+        "add",
+        aliases=["a"],
+        help="Add a repository to tracking",
+    )
     add_parser.add_argument(
         "path",
         nargs="?",
@@ -614,7 +622,9 @@ def main(argv: list[str] | None = None):
     )
 
     remove_parser = subparsers.add_parser(
-        "remove", help="Remove a repository from tracking"
+        "remove",
+        aliases=["rm"],
+        help="Remove a repository from tracking",
     )
     remove_parser.add_argument(
         "path",

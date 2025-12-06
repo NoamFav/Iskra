@@ -58,6 +58,9 @@ def main(argv: list[str] | None = None):
         elif cmd == "status":
             argv = argv[1:] + ["--status-only"]
 
+        elif cmd == "sync":
+            argv = ["--pull", "--status-only", "--yes"]
+
     parser = argparse.ArgumentParser(
         description="Iskra - Intelligent Git automation with configuration management",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
