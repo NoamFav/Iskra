@@ -546,7 +546,7 @@ def remove_command(args, formatter, json_mode: bool, quiet: bool):
     formatter.emit(payload)
 
 
-def main():
+def main(argv: list[str] | None = None):
 
     parser = argparse.ArgumentParser(
         description="Initialize and manage Iskra configuration",
@@ -591,7 +591,7 @@ def main():
     )
     remove_parser.add_argument("path", help="Path to git repository")
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     json_mode = bool(getattr(args, "json", False))
     quiet = bool(getattr(args, "quiet", False))

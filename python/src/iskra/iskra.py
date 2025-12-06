@@ -1,7 +1,9 @@
 import os
+import sys
 import subprocess
 import argparse
 from datetime import datetime
+from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
@@ -27,7 +29,31 @@ from iskra.output.formatter import (
 console = Console()
 
 
-def main():
+def main(argv: list[str] | None = None):
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if argv:
+        cmd = argv[0]
+
+        if cmd == "init":
+            # delegate to iskra.init CLI
+            from iskra import init as init_cli
+
+            # pass the rest of the args (no need to keep "init" itself)
+            return init_cli.main(argv[1:])
+
+        if cmd == "scan":
+            # `iskra scan` == `iskra --scan --status-only`
+            argv = argv[1:] + ["--scan", "--status-only"]
+
+        elif cmd == "pulse":
+            # `iskra pulse` == `iskra --pulse`
+            argv = argv[1:] + ["--pulse"]
+
+        elif cmd == "commit":
+            # `iskra commit` == default behavior
+            argv = argv[1:]
 
     parser = argparse.ArgumentParser(
         description="Iskra - Intelligent Git automation with configuration management",
@@ -91,13 +117,20 @@ def main():
         action="store_true",
         help="Suppress Rich UI and output only JSON.",
     )
+    parser.add_argument(
+        "--pulse",
+        action="store_true",
+        help="Do action only on current repo",
+    )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+
+    if args.pulse:
+        args.only = [Path.cwd().name]
 
     json_mode = bool(getattr(args, "json", False))
     quiet = bool(getattr(args, "quiet", False))
     rich_enabled = not (json_mode or quiet)
-
     formatter = get_formatter(json_mode=json_mode, quiet=quiet, console=console)
 
     if args.config:
@@ -183,7 +216,7 @@ def main():
                 console.print(
                     f"\n[yellow]{get_icon('warning')} No repositories found[/]"
                 )
-                console.print(f"[dim]Run 'iskra-init init' to track repositories[/]")
+                console.print(f"[dim]Run 'iskra init' to track repositories[/]")
 
             payload = OutputPayload(
                 success=True,

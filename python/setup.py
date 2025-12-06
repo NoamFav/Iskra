@@ -69,7 +69,6 @@ setup(
             "iskra=iskra.iskra:main",
             "pull-repos=iskra.pull_repos:main",
             "ai_commit=iskra.ai_commit:main",
-            "iskra-init=iskra.init:main",
         ],
     },
     # Build command customization
