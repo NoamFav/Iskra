@@ -66,7 +66,7 @@ def process_repository(
             is_clean = status_output == ""
 
             # If we're in pull-only mode (sync/sync-all), just print a single line and bail
-            if getattr(args, "pull-only", False):
+            if getattr(args, "pull_only", False):
                 if (
                     "Already up to date" in pull_stdout
                     or "Already up to date" in pull_stderr
