@@ -37,8 +37,8 @@ class CommandRouter:
         "scan": ["--scan", "--status-only"],
         "pulse": ["--pulse"],
         "status": ["--status-only"],
-        "sync": ["--pull", "--pull-only", "--pulse"],
-        "sync-all": ["--pull", "--pull-only"],
+        "sync": ["--pull", "--pull-only", "--pulse", "-y"],
+        "sync-all": ["--pull", "--pull-only", "-y"],
     }
 
     @classmethod
