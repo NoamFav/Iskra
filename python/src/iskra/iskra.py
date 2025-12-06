@@ -59,7 +59,10 @@ def main(argv: list[str] | None = None):
             argv = argv[1:] + ["--status-only"]
 
         elif cmd == "sync":
-            argv = ["--pull", "--status-only", "--yes"]
+            argv = ["--pull", "--pull-only", "--pulse"]
+
+        elif cmd == "sync-all":
+            argv = ["--pull", "--pull-only"]
 
     parser = argparse.ArgumentParser(
         description="Iskra - Intelligent Git automation with configuration management",
@@ -68,6 +71,11 @@ def main(argv: list[str] | None = None):
 
     parser.add_argument("--config", type=str, help="Path to config file")
     parser.add_argument("--profile", type=str, help="Use named profile")
+    parser.add_argument(
+        "--pull-only",
+        action="store_true",
+        help="Only do pull and stop directly",
+    )
 
     parser.add_argument("--dir", type=str, help="Base directory (overrides config)")
     parser.add_argument(
@@ -371,6 +379,7 @@ def main(argv: list[str] | None = None):
                 self.compact = getattr(args_orig, "compact", False)
                 self.show_diff = config.show_diff
                 self.auto_push = config.auto_push
+                self.pull_only = args_orig.pull_only
 
         repo_args = RepoArgs(repo_config, args)
 

@@ -29,7 +29,9 @@ def process_repository(
     entry_path, entry, args, task_id=None, progress=None, orig_cwd=None
 ):
     # Check if we should minimize output for clean repos
-    minimize_clean = getattr(args, "status_only", False)
+    minimize_clean = getattr(args, "status_only", False) and getattr(
+        args, "compact", False
+    )
 
     # We'll determine if repo is clean first, then decide on display
     os.chdir(entry_path)
@@ -38,6 +40,71 @@ def process_repository(
         current_branch = get_current_branch()
         status_output = git_status_porcelain()
         is_clean = status_output == ""
+
+        status_table = Table(
+            show_header=False,
+            box=None,
+            padding=(0, 1, 0, 1),
+            collapse_padding=True,
+        )
+        status_table.add_column("Icon", style="cyan")
+        status_table.add_column("Status", style="white")
+        status_table.add_column("Details", style="green")
+
+        # Pull changes if requested (even in status-only mode)
+        if args.pull:
+            with console.status(
+                "[bold blue]Pulling latest changes...[/]", spinner="dots"
+            ):
+                pull_result = git_pull()
+
+            pull_stdout = pull_result.stdout.strip()
+            pull_stderr = pull_result.stderr.strip()
+
+            # Re-check status after pull
+            status_output = git_status_porcelain()
+            is_clean = status_output == ""
+
+            # If we're in pull-only mode (sync/sync-all), just print a single line and bail
+            if getattr(args, "pull-only", False):
+                if (
+                    "Already up to date" in pull_stdout
+                    or "Already up to date" in pull_stderr
+                    or pull_stdout == ""
+                ):
+                    console.print(
+                        f"{get_icon('info')} [green]No new changes to pull[/] "
+                        f"[dim]({entry})[/]"
+                    )
+                else:
+                    console.print(
+                        f"{get_icon('pull')} [bold]Pulled changes[/] "
+                        f"[dim]({entry})[/]"
+                    )
+
+                if progress and task_id:
+                    progress.update(task_id, advance=1)
+                return True
+
+            # Non-mute path: we’ll keep using status_table later
+            # (define it once higher up in the function, NOT again later)
+            status_table.add_row(
+                (
+                    get_icon("info")
+                    if (
+                        "Already up to date" in pull_stdout
+                        or "Already up to date" in pull_stderr
+                        or pull_stdout == ""
+                    )
+                    else get_icon("pull")
+                ),
+                "No new changes" if is_clean else "Pulled changes",
+                (
+                    "Repository is already up to date"
+                    if is_clean
+                    else (pull_stdout if pull_stdout else pull_stderr)
+                ),
+            )
 
         # For status-only mode with clean repos, show minimal info
         if minimize_clean and is_clean:
@@ -58,13 +125,12 @@ def process_repository(
             subtitle_align="right",
         )
         console.print(repo_panel)
-    finally:
+
         start_time = time.time()
 
         if progress and task_id:
             progress.update(task_id, description=f"[cyan]Processing {entry}[/]")
 
-    try:
         # Branch info (already fetched above)
         branch_style = "magenta" if current_branch in ["main", "master"] else "yellow"
 
@@ -77,29 +143,6 @@ def process_repository(
         console.print(
             f"{branch_icon} On branch: [bold {branch_style}]{current_branch}[/]"
         )
-
-        status_table = Table(
-            show_header=False,
-            box=None,
-            padding=(0, 1, 0, 1),
-            collapse_padding=True,
-        )
-        status_table.add_column("Icon", style="cyan")
-        status_table.add_column("Status", style="white")
-        status_table.add_column("Details", style="green")
-
-        # Pull changes if requested (even in status-only mode)
-        if args.pull:
-            with console.status(
-                "[bold blue]Pulling latest changes...[/]", spinner="dots"
-            ):
-                pull_result = git_pull()
-            status_table.add_row(
-                get_icon("pull"), "Pulled changes", pull_result.stdout.strip()
-            )
-            # Re-check status after pull
-            status_output = git_status_porcelain()
-            is_clean = status_output == ""
 
         # Show current status
         if is_clean:
