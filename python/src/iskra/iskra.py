@@ -32,11 +32,16 @@ def main(argv: list[str] | None = None):
         cmd = argv[0]
 
         if cmd == "init":
-            # delegate to iskra.init CLI
             from iskra import init as init_cli
 
-            # pass the rest of the args
-            return init_cli.main(argv)
+            if len(argv) == 1:
+                # `iskra init` -> `init` subcommand
+                return init_cli.main(["init"])
+            else:
+                # `iskra init add ...` -> `add ...`
+                # `iskra init list`   -> `list`
+                # `iskra init remove` -> `remove`
+                return init_cli.main(argv[1:])
 
         if cmd == "scan":
             # `iskra scan` == `iskra --scan --status-only`
@@ -49,6 +54,9 @@ def main(argv: list[str] | None = None):
         elif cmd == "commit":
             # `iskra commit` == default behavior
             argv = argv[1:]
+
+        elif cmd == "status":
+            argv = argv[1:] + ["--status-only"]
 
     parser = argparse.ArgumentParser(
         description="Iskra - Intelligent Git automation with configuration management",

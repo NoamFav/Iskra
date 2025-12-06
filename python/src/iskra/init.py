@@ -26,6 +26,18 @@ from iskra.output.formatter import (
 console = Console()
 
 
+def get_git_root(path: str) -> str | None:
+    """Return the git repo root for `path`, or None if not a git repo."""
+    result = subprocess.run(
+        ["git", "-C", path, "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
 def get_git_info(repo_path: str) -> dict:
 
     original_dir = os.getcwd()
@@ -430,34 +442,28 @@ def list_command(args, formatter, json_mode: bool, quiet: bool):
 
 
 def add_command(args, formatter, json_mode: bool, quiet: bool):
+    raw_path = os.path.abspath(args.path)
+    repo_root = get_git_root(raw_path)
 
-    rich_enabled = not (json_mode or quiet)
-    config_manager = ConfigManager()
-
-    repo_path = Path(args.path).expanduser().resolve()
-
-    if not (repo_path / ".git").exists() and not (repo_path / ".git").is_file():
-        if rich_enabled:
-            console.print(
-                f"[red]{get_icon('error')} Not a git repository: {repo_path}[/]"
-            )
+    if repo_root is None:
+        # not a git repo anywhere up the tree
+        console.print(f"[red]Not a git repository: {args.path}[/]")
         payload = OutputPayload(
             success=False,
             operation="init",
             repos_total=1,
             repos_success=0,
             repos_failed=1,
-            results=[
-                RepoResult(
-                    path=str(repo_path),
-                    name=repo_path.name,
-                    status="failed",
-                )
-            ],
+            results=[],
             errors=["not_a_git_repository"],
         )
         formatter.emit(payload)
         return
+
+    rich_enabled = not (json_mode or quiet)
+    config_manager = ConfigManager()
+
+    repo_path = Path(repo_root)
 
     git_info = get_git_info(str(repo_path))
 
@@ -512,11 +518,27 @@ def add_command(args, formatter, json_mode: bool, quiet: bool):
 
 
 def remove_command(args, formatter, json_mode: bool, quiet: bool):
+    raw_path = os.path.abspath(args.path)
+    repo_root = get_git_root(raw_path)
 
+    if repo_root is None:
+        # not a git repo anywhere up the tree
+        console.print(f"[red]Not a git repository: {args.path}[/]")
+        payload = OutputPayload(
+            success=False,
+            operation="init",
+            repos_total=1,
+            repos_success=0,
+            repos_failed=1,
+            results=[],
+            errors=["not_a_git_repository"],
+        )
+        formatter.emit(payload)
+        return
     rich_enabled = not (json_mode or quiet)
     config_manager = ConfigManager()
 
-    repo_path = Path(args.path).expanduser().resolve()
+    repo_path = Path(repo_root)
 
     removed = config_manager.remove_repo(str(repo_path))
 
@@ -584,12 +606,22 @@ def main(argv: list[str] | None = None):
     )
 
     add_parser = subparsers.add_parser("add", help="Add a repository to tracking")
-    add_parser.add_argument("path", help="Path to git repository")
+    add_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Path to git repository",
+    )
 
     remove_parser = subparsers.add_parser(
         "remove", help="Remove a repository from tracking"
     )
-    remove_parser.add_argument("path", help="Path to git repository")
+    remove_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Path to remove",
+    )
 
     args = parser.parse_args(argv)
 
@@ -607,7 +639,6 @@ def main(argv: list[str] | None = None):
     elif args.command == "remove":
         remove_command(args, formatter, json_mode, quiet)
     else:
-
         console.print(parser.format_help())
 
 
