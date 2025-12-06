@@ -3,7 +3,6 @@ import sys
 import subprocess
 import argparse
 from datetime import datetime
-from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
@@ -14,15 +13,11 @@ from iskra.config import ConfigManager, get_config
 from iskra.ui.display import process_repository
 from iskra.ui.formatting import print_header, get_icon
 from iskra.core.repo_scanner import find_git_repos
-from iskra.core.constants import ICONS
 
 from iskra.output.formatter import (
     get_formatter,
     OutputPayload,
     RepoResult,
-    RepoChanges,
-    RepoRemote,
-    RepoCommit,
 )
 
 
@@ -40,8 +35,8 @@ def main(argv: list[str] | None = None):
             # delegate to iskra.init CLI
             from iskra import init as init_cli
 
-            # pass the rest of the args (no need to keep "init" itself)
-            return init_cli.main(argv[1:])
+            # pass the rest of the args
+            return init_cli.main(argv)
 
         if cmd == "scan":
             # `iskra scan` == `iskra --scan --status-only`
@@ -124,10 +119,6 @@ def main(argv: list[str] | None = None):
     )
 
     args = parser.parse_args(argv)
-
-    if args.pulse:
-        args.only = [Path.cwd().name]
-
     json_mode = bool(getattr(args, "json", False))
     quiet = bool(getattr(args, "quiet", False))
     rich_enabled = not (json_mode or quiet)
@@ -194,71 +185,98 @@ def main(argv: list[str] | None = None):
             )
         )
 
-    tracked_repos = config_manager.get_all_repos(active_only=True)
-
-    if args.scan or not tracked_repos:
-
-        if rich_enabled:
-            console.print("[bold blue]Scanning for Git repositories...[/]")
-
-        git_repo_paths = find_git_repos(
-            base_dir=base_dir,
-            only=config.only_patterns,
-            exclude=config.exclude_patterns,
-            max_depth=config.max_depth,
-            followlinks=config.follow_symlinks,
+    if args.pulse:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
         )
-
-        git_repos = [(path, os.path.relpath(path, base_dir)) for path in git_repo_paths]
-
-        if not args.scan and not git_repos:
+        if result.returncode != 0:
             if rich_enabled:
-                console.print(
-                    f"\n[yellow]{get_icon('warning')} No repositories found[/]"
-                )
-                console.print(f"[dim]Run 'iskra init' to track repositories[/]")
-
+                console.print("[red]iskra --pulse: not inside a git repository[/]")
             payload = OutputPayload(
-                success=True,
+                success=False,
                 operation="status" if args.status_only else "commit",
                 repos_total=0,
                 repos_success=0,
                 repos_failed=0,
                 results=[],
-                errors=[],
+                errors=["not_in_git_repo"],
             )
             formatter.emit(payload)
             return
+
+        repo_root = result.stdout.strip()
+        git_repos = [(repo_root, os.path.basename(repo_root))]
+        tracked_repos = []
     else:
+        tracked_repos = config_manager.get_all_repos(active_only=True)
 
-        if rich_enabled:
-            console.print(
-                f"[bold blue]Using {len(tracked_repos)} tracked repositories[/]"
+        if args.scan or not tracked_repos:
+
+            if rich_enabled:
+                console.print("[bold blue]Scanning for Git repositories...[/]")
+
+            git_repo_paths = find_git_repos(
+                base_dir=base_dir,
+                only=config.only_patterns,
+                exclude=config.exclude_patterns,
+                max_depth=config.max_depth,
+                followlinks=config.follow_symlinks,
             )
 
-        git_repos = []
-        for repo_info in tracked_repos:
-            repo_path = repo_info.path
-            repo_name = repo_info.name
+            git_repos = [
+                (path, os.path.relpath(path, base_dir)) for path in git_repo_paths
+            ]
 
-            if config.only_patterns:
-                from fnmatch import fnmatch
+            if not args.scan and not git_repos:
+                if rich_enabled:
+                    console.print(
+                        f"\n[yellow]{get_icon('warning')} No repositories found[/]"
+                    )
+                    console.print(f"[dim]Run 'iskra init' to track repositories[/]")
 
-                if not any(fnmatch(repo_name, pat) for pat in config.only_patterns):
-                    continue
+                payload = OutputPayload(
+                    success=True,
+                    operation="status" if args.status_only else "commit",
+                    repos_total=0,
+                    repos_success=0,
+                    repos_failed=0,
+                    results=[],
+                    errors=[],
+                )
+                formatter.emit(payload)
+                return
+        else:
 
-            if config.exclude_patterns:
-                from fnmatch import fnmatch
+            if rich_enabled:
+                console.print(
+                    f"[bold blue]Using {len(tracked_repos)} tracked repositories[/]"
+                )
 
-                if any(fnmatch(repo_name, pat) for pat in config.exclude_patterns):
-                    continue
+            git_repos = []
+            for repo_info in tracked_repos:
+                repo_path = repo_info.path
+                repo_name = repo_info.name
 
-            git_repos.append((repo_path, repo_name))
+                if config.only_patterns:
+                    from fnmatch import fnmatch
 
-        if rich_enabled:
-            console.print(
-                f"[bold green]Selected {len(git_repos)} repositories after filters[/]"
-            )
+                    if not any(fnmatch(repo_name, pat) for pat in config.only_patterns):
+                        continue
+
+                if config.exclude_patterns:
+                    from fnmatch import fnmatch
+
+                    if any(fnmatch(repo_name, pat) for pat in config.exclude_patterns):
+                        continue
+
+                git_repos.append((repo_path, repo_name))
+
+            if rich_enabled:
+                console.print(
+                    f"[bold green]Selected {len(git_repos)} repositories after filters[/]"
+                )
 
     if rich_enabled:
         summary_panel = Panel(
