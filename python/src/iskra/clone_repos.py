@@ -4,6 +4,7 @@ import argcomplete
 from rich.console import Console
 from rich.panel import Panel
 from rich.traceback import install as install_traceback
+from typing import Optional
 
 from .ui.formatting import print_header, get_icon
 from .ui.tables import create_config_table
@@ -24,7 +25,7 @@ install_traceback(show_locals=True)
 console = Console()
 
 
-def main():
+def main(argv: Optional[list[str]] = None):
 
     parser = argparse.ArgumentParser(
         description="Clone GitHub repositories with rich visual interface.",
@@ -77,7 +78,7 @@ def main():
         help="Suppress Rich UI and output only JSON.",
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     argcomplete.autocomplete(parser)
 
     base_dir = args.base_dir

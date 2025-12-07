@@ -55,7 +55,10 @@ class CommandRouter:
 
             subcmd = ["init"] if len(argv) == 1 else argv[1:]
             sys.exit(init_cli.main(subcmd))
+        if cmd == "clone":
+            from iskra import clone_repos as clone_cli
 
+            sys.exit(clone_cli.main(argv[1:]))
         # Handle commit command (default behavior)
         if cmd == "commit":
             return argv[1:]
