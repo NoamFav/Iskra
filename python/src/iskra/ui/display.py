@@ -159,7 +159,7 @@ class RepositoryDisplay:
         self.console.print()
 
         if is_ai:
-            self.console.print(f"  [cyan]✨[/] [bold]AI Generated Commit[/]")
+            self.console.print(f"  [cyan][/] [bold]AI Generated Commit[/]")
         else:
             self.console.print(f"  [cyan]✓[/] [bold]Committed[/]")
 
