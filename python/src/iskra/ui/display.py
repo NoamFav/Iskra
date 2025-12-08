@@ -103,7 +103,7 @@ class RepositoryDisplay:
             status_text, style = self._get_status_display(status_code)
 
             self.console.print(
-                f"    [{style}]{status_text[0]}[/] "
+                f"    [{style}]{status_text[0]:1}[/] "
                 f"[dim]{get_file_icon(file_path)}[/] "
                 f"{file_path}"
             )
