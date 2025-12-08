@@ -59,6 +59,10 @@ class CommandRouter:
             from iskra import clone_repos as clone_cli
 
             sys.exit(clone_cli.main(argv[1:]))
+        if cmd == "gh":
+            from iskra import gh as gh_cli
+
+            sys.exit(gh_cli.main(argv[1:]))
         # Handle commit command (default behavior)
         if cmd == "commit":
             return argv[1:]
