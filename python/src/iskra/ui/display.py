@@ -6,6 +6,8 @@ from typing import Optional
 
 from rich.console import Console
 from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
 
 
 from .formatting import get_icon, get_file_icon
@@ -66,7 +68,6 @@ class RepositoryDisplay:
 
     def show_repository_header(self, state: RepositoryState, path: str):
         """Display repository header with modern minimal design."""
-        # Use subtle color gradient effect
         status_indicator = "●" if state.has_changes else "○"
         status_color = "yellow" if state.has_changes else "green"
 
@@ -96,12 +97,11 @@ class RepositoryDisplay:
         self.console.print(f"  [dim]Changes:[/] [yellow]{len(changes)}[/]")
         self.console.print()
 
-        for change in changes[:15]:  # Limit to first 15 for cleaner display
+        for change in changes[:15]:
             status_code = change[:2].strip()
             file_path = change[3:].strip()
             status_text, style = self._get_status_display(status_code)
 
-            # Clean, minimal file listing
             self.console.print(
                 f"    [{style}]{status_text[0]}[/] "
                 f"[dim]{get_file_icon(file_path)}[/] "
@@ -137,17 +137,69 @@ class RepositoryDisplay:
                 f"  [dim green]✓[/] [dim]already up to date[/] [dim]({name})[/]"
             )
 
-    def show_commit_panel(self, commit_output: str):
-        """Display commit details in minimal format."""
+    def show_commit_panel(self, commit_output: str, is_ai: bool = False):
+        """Display commit details in an enhanced panel."""
         lines = commit_output.strip().split("\n")
 
-        self.console.print(f"\n  [dim]Commit:[/]")
-        for line in lines[:5]:  # Show first 5 lines
-            self.console.print(f"    [dim]{line}[/]")
+        # Extract commit hash and message
+        commit_hash = None
+        commit_msg = None
+
+        for line in lines:
+            if line.startswith("commit "):
+                commit_hash = line.split()[1][:7]  # Short hash
+            elif (
+                commit_msg is None
+                and line.strip()
+                and not line.startswith(("commit", "Author:", "Date:"))
+            ):
+                commit_msg = line.strip()
+
+        # Build the display
+        self.console.print()
+
+        if is_ai:
+            self.console.print(f"  [cyan]✨[/] [bold]AI Generated Commit[/]")
+        else:
+            self.console.print(f"  [cyan]✓[/] [bold]Committed[/]")
+
+        if commit_hash:
+            self.console.print(f"    [dim]hash:[/] [cyan]{commit_hash}[/]")
+
+        if commit_msg:
+            # Wrap long messages nicely
+            if len(commit_msg) > 60:
+                self.console.print(f"    [dim]msg:[/]  [white]{commit_msg[:60]}...[/]")
+            else:
+                self.console.print(f"    [dim]msg:[/]  [white]{commit_msg}[/]")
+
+    def show_ai_commit_thinking(self, changes_count: int):
+        """Show AI is analyzing changes."""
+        self.console.print()
+        self.console.print(
+            f"  [cyan]◆[/] [dim]analyzing {changes_count} change{'s' if changes_count != 1 else ''}...[/]"
+        )
 
     def show_push_result(self, push_output: str):
-        """Display push result."""
-        self.console.print(f"  [cyan]↑[/] [dim]pushed to remote[/]")
+        """Display enhanced push result with branch info."""
+        # Extract branch info if present
+        lines = push_output.split("\n")
+        branch_line = None
+
+        for line in lines:
+            if "->" in line and "refs/heads" in line:
+                branch_line = line.strip()
+                break
+
+        self.console.print()
+        self.console.print(f"  [cyan]↑[/] [white]Pushed to remote[/]")
+
+        if branch_line:
+            # Clean up the branch display
+            parts = branch_line.split("->")
+            if len(parts) == 2:
+                remote_branch = parts[1].strip().replace("refs/heads/", "")
+                self.console.print(f"    [dim]→ {remote_branch}[/]")
 
     def show_elapsed_time(self, elapsed: float):
         """Display processing time."""
@@ -155,14 +207,13 @@ class RepositoryDisplay:
 
     def show_success(self, name: str):
         """Display success message."""
-        self.console.print(f"  [green]✓[/] [dim]success[/]")
+        self.console.print(f"  [green]✓[/] [white]success[/]")
 
     def show_error(self, name: str, error: str):
         """Display error message."""
         self.console.print(f"  [red]✗[/] [red]error:[/] {name}")
-        # Show error without heavy box
         error_lines = error.split("\n")
-        for line in error_lines[:3]:  # Show first 3 lines
+        for line in error_lines[:3]:
             self.console.print(f"    [dim red]{line}[/]")
 
     def show_separator(self):
@@ -216,36 +267,40 @@ class GitOperationsHandler:
 
         return changes_made
 
-    def commit_with_ai(self, commit_message: str) -> bool:
-        """Commit using ai_commit command. Returns success status."""
-        console.print(f"\n  [cyan]◆[/] [dim]using ai_commit[/]")
+    def commit_with_ai(
+        self, commit_message: str, changes_count: int
+    ) -> tuple[bool, Optional[str]]:
+        """Commit using ai_commit command. Returns (success, commit_output)."""
+        self.display.show_ai_commit_thinking(changes_count)
 
-        result = subprocess.run(
-            ["ai_commit", commit_message],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+        with console.status("[dim]generating commit with AI...[/]", spinner="dots"):
+            result = subprocess.run(
+                ["ai_commit", commit_message],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
 
         if result.returncode == 0:
-            console.print(f"  [green]✓[/] [dim]ai commit successful[/]")
-            return True
+            # Get the actual commit details
+            show_result = git_show_last_commit()
+            return True, show_result.stdout
         else:
-            console.print(f"  [red]✗[/] [red]ai commit failed[/]")
+            console.print(f"  [red]✗[/] [red]AI commit failed[/]")
             if result.stderr.strip():
                 console.print(f"    [dim red]{result.stderr.strip()[:100]}[/]")
-            return False
+            return False, None
 
     def commit_standard(self, commit_message: str):
-        """Perform standard git commit."""
-        console.print(f"  [dim]staging...[/]")
+        """Perform standard git commit and return output."""
+        console.print(f"\n  [dim]staging changes...[/]")
         git_add_all()
 
-        console.print(f"  [dim]committing:[/] {commit_message}")
+        console.print(f"  [dim]committing...[/]")
         git_commit(commit_message)
 
         show_result = git_show_last_commit()
-        self.display.show_commit_panel(show_result.stdout)
+        return show_result.stdout
 
     def push_if_enabled(self, args) -> Optional[str]:
         """Push changes if auto_push is enabled. Returns push output."""
@@ -253,11 +308,11 @@ class GitOperationsHandler:
             return None
 
         if args.auto_push:
-            console.print(f"  [dim]pushing...[/]")
-            push_result = git_push()
+            with console.status("[dim]pushing...[/]", spinner="dots"):
+                push_result = git_push()
             return push_result.stdout
         else:
-            console.print(f"  [dim]skipping push[/]")
+            console.print(f"\n  [dim cyan]ℹ[/] [dim]auto-push disabled[/]")
             return None
 
 
@@ -340,11 +395,16 @@ class RepositoryProcessor:
                 commit_message = self._get_commit_message(args)
 
                 if args.use_ai_commit:
-                    success = self.git_ops.commit_with_ai(commit_message)
+                    success, commit_output = self.git_ops.commit_with_ai(
+                        commit_message, state.changes_count
+                    )
                     if not success:
                         return False
+                    if commit_output:
+                        self.display.show_commit_panel(commit_output, is_ai=True)
                 else:
-                    self.git_ops.commit_standard(commit_message)
+                    commit_output = self.git_ops.commit_standard(commit_message)
+                    self.display.show_commit_panel(commit_output, is_ai=False)
 
                 # Push if enabled
                 push_output = self.git_ops.push_if_enabled(args)
