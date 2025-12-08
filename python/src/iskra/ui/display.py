@@ -1,15 +1,12 @@
 import os
 import time
-import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import Optional
 
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
-from rich.tree import Tree
-from rich import box
+
 
 from .formatting import get_icon, get_file_icon
 from ..core.git_operations import (
