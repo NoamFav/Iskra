@@ -6,9 +6,7 @@ from typing import Optional
 
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
-from rich.text import Text
-
+from rich.tree import Tree
 
 from .formatting import get_icon, get_file_icon
 from ..core.git_operations import (
@@ -91,25 +89,21 @@ class RepositoryDisplay:
         self.console.print(f"  [dim green]✓[/] [dim]working tree clean[/]")
 
     def show_changes_tree(self, status_output: str):
-        """Display list of changed files with modern styling."""
+        """Display tree of changed files."""
         changes = [c for c in status_output.split("\n") if c.strip()]
+        tree = Tree(f"[bold yellow]{len(changes)} files changed[/]")
 
-        self.console.print(f"  [dim]Changes:[/] [yellow]{len(changes)}[/]")
-        self.console.print()
-
-        for change in changes[:15]:
+        for change in changes:
             status_code = change[:2].strip()
             file_path = change[3:].strip()
             status_text, style = self._get_status_display(status_code)
 
-            self.console.print(
-                f"    [{style}]{status_text[0]:1}[/] "
-                f"[dim]{get_file_icon(file_path)}[/] "
-                f"{file_path}"
+            tree.add(
+                f"[{style}]{get_file_icon(file_path)} {file_path}[/] "
+                f"([bold {style}]{status_text}[/])"
             )
 
-        if len(changes) > 15:
-            self.console.print(f"    [dim]... and {len(changes) - 15} more[/]")
+        self.console.print(tree)
 
     def _get_status_display(self, status_code: str) -> tuple[str, str]:
         """Get display text and style for a status code."""
