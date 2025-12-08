@@ -274,21 +274,14 @@ class UIManager:
 
         if args.dry_run:
             console.print(
-                Panel(
-                    "[bold yellow]DRY RUN MODE[/]\nNo changes will be made to repositories",
-                    border_style="yellow",
-                    title="⚠️  Warning",
-                )
+                "[dim yellow]⚠[/]  [yellow]dry run mode[/] [dim]— no changes will be made[/]\n"
             )
 
         if args.status_only:
-            mode_text = "[bold cyan]STATUS ONLY MODE[/]\n"
-            mode_text += (
-                "Clean repositories will be shown in compact format"
-                if args.compact
-                else "Will only display repository status"
-            )
-            console.print(Panel(mode_text, border_style="cyan", title="ℹ️  Info"))
+            mode_text = "[dim cyan]ℹ[/]  [cyan]status only mode[/]"
+            if args.compact:
+                mode_text += " [dim]— compact display for clean repos[/]"
+            console.print(f"{mode_text}\n")
 
     def show_repository_summary(self, repo_count: int, message: str = ""):
         """Display repository count summary."""
@@ -296,28 +289,24 @@ class UIManager:
             return
 
         if message:
-            console.print(f"[bold blue]{message}[/]")
+            console.print(f"[dim]{message}[/]\n")
 
-        console.print(
-            Panel(
-                f"{get_icon('folder')} Found [bold green]{repo_count}[/] repositories to process",
-                title="Repository Summary",
-                border_style="blue",
-            )
-        )
+        console.print(f"[white]Found[/] [bold]{repo_count}[/] [white]repositories[/]\n")
 
     def confirm_processing(self, repo_count: int) -> bool:
         """Ask user to confirm processing."""
         if not self.rich_enabled:
             return True
 
+        from rich.prompt import Confirm
+
         if not Confirm.ask(f"Process {repo_count} repositories?", default=True):
-            console.print("[yellow]Cancelled[/]")
+            console.print("[dim yellow]cancelled[/]")
             return False
 
         return True
 
-    def show_final_summary(self, args, stats: ProcessingStats, total: int):
+    def show_final_summary(self, args, stats, total: int):
         """Display final processing summary."""
         if not self.rich_enabled:
             return
@@ -329,39 +318,28 @@ class UIManager:
         else:
             self._show_standard_summary(stats.success_count, total)
 
-    def _show_compact_summary(self, stats: ProcessingStats, total: int):
+    def _show_compact_summary(self, stats, total: int):
         """Show compact summary with clean/dirty breakdown."""
-        summary_table = Table(show_header=False, box=None, padding=(0, 2))
-        summary_table.add_column("Label", style="cyan")
-        summary_table.add_column("Count", style="bold")
-
-        summary_table.add_row(
-            f"{get_icon('check')} Clean repositories:",
-            f"[green]{stats.clean_count}[/green]",
+        console.print(f"[dim]Summary:[/]")
+        console.print(f"  [green]✓[/] [dim]clean:[/] [green]{stats.clean_count}[/]")
+        console.print(
+            f"  [yellow]●[/] [dim]with changes:[/] [yellow]{stats.dirty_count}[/]"
         )
-        summary_table.add_row(
-            f"{get_icon('warning')} Repositories with changes:",
-            f"[yellow]{stats.dirty_count}[/yellow]",
-        )
-        summary_table.add_row(
-            f"{get_icon('folder')} Total processed:",
-            f"[blue]{total}[/blue]",
-        )
-
-        console.print(Panel(summary_table, title="Summary", border_style="blue"))
+        console.print(f"  [dim]total:[/] [white]{total}[/]")
+        console.print()
 
     def _show_standard_summary(self, success_count: int, total: int):
         """Show standard success summary."""
         all_success = success_count == total
+        status = "✓" if all_success else "◆"
+        color = "green" if all_success else "yellow"
+
         console.print(
-            Panel(
-                f"{get_icon('sparkles')} [bold]{success_count}/{total}[/] "
-                f"repositories processed successfully {get_icon('sparkles')}",
-                border_style="green" if all_success else "yellow",
-                title="Processing Complete",
-                title_align="center",
-            )
+            f"[{color}]{status}[/] "
+            f"[white]Processed[/] [bold]{success_count}/{total}[/] "
+            f"[dim]repositories[/]"
         )
+        console.print()
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
