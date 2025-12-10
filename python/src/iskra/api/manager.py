@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
+from subprocess import CompletedProcess
 
 from iskra.config import ConfigManager, RepoInfo
 from iskra.core.git_operations import (
@@ -487,7 +488,11 @@ class IskraManager:
 
     def commit_repo(self, repo_path: str, message: str) -> ProcessResult:
         """Commit changes with message"""
-        return self.process_repo(repo_path, commit=True, commit_message=message)
+        return self.process_repo(
+            repo_path,
+            commit=True,
+            commit_message=message,
+        )
 
     def push_repo(self, repo_path: str) -> ProcessResult:
         """Push changes to remote"""
@@ -616,7 +621,9 @@ class IskraManager:
                     size = os.path.getsize(filepath)
                     if size > threshold_bytes:
                         rel_path = os.path.relpath(filepath, repo_path)
-                        large_files.append(f"{rel_path} ({size / 1024 / 1024:.2f} MB)")
+                        large_files.append(
+                            f"{rel_path} ({size / 1024 / 1024:.2f} MB)",
+                        )
                 except OSError:
                     pass
 
@@ -673,7 +680,13 @@ class IskraManager:
 
             # Get ahead/behind counts
             result = subprocess.run(
-                ["git", "rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
+                [
+                    "git",
+                    "rev-list",
+                    "--left-right",
+                    "--count",
+                    "HEAD...@{upstream}",
+                ],
                 cwd=repo_path,
                 capture_output=True,
                 text=True,
@@ -721,21 +734,23 @@ class IskraManager:
 
         try:
             result = subprocess.run(
-                ["git", "remote", "get-url", "origin"], capture_output=True, text=True
+                ["git", "remote", "get-url", "origin"],
+                capture_output=True,
+                text=True,
             )
-            remote_url = result.stdout.strip() if result.returncode == 0 else None
+            remote_url = _stdout_or_none(result)
 
             result = subprocess.run(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 capture_output=True,
                 text=True,
             )
-            default_branch = result.stdout.strip() if result.returncode == 0 else None
+            default_branch = _stdout_or_none(result)
 
             result = subprocess.run(
                 ["git", "rev-parse", "HEAD"], capture_output=True, text=True
             )
-            last_commit = result.stdout.strip() if result.returncode == 0 else None
+            last_commit = _stdout_or_none(result)
 
             return {
                 "remote_url": remote_url,
@@ -744,3 +759,9 @@ class IskraManager:
             }
         finally:
             os.chdir(orig_cwd)
+
+
+def _stdout_or_none(result: CompletedProcess[str]) -> Optional[str]:
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()

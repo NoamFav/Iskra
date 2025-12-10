@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import Mock, patch
 from iskra.api.manager import IskraManager, RepoStatus
 

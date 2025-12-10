@@ -86,7 +86,9 @@ class RepositoryDisplay:
 
     def show_clean_status(self):
         """Display status for clean repository."""
-        self.console.print(f"  [dim green]✓[/] [dim]working tree clean[/]")
+        self.console.print(
+            "  [dim green]✓[/] [dim]working tree clean[/]",
+        )
 
     def show_changes_tree(self, status_output: str):
         """Display tree of changed files."""
@@ -118,7 +120,9 @@ class RepositoryDisplay:
 
     def show_status_only_message(self):
         """Display message for status-only mode."""
-        self.console.print(f"\n  [dim cyan]ℹ[/] [dim]status only mode[/]")
+        self.console.print(
+            "\n  [dim cyan]ℹ[/] [dim]status only mode[/]",
+        )
 
     def show_pull_only_message(self, name: str, has_changes: bool):
         """Display message for pull-only mode."""
@@ -128,7 +132,9 @@ class RepositoryDisplay:
             )
         else:
             self.console.print(
-                f"  [dim green]✓[/] [dim]already up to date[/] [dim]({name})[/]"
+                f"  [dim green]✓[/] [dim]already up to date[/] [dim]({
+                    name
+                })[/]"
             )
 
     def show_commit_panel(self, commit_output: str, is_ai: bool = False):
@@ -153,25 +159,39 @@ class RepositoryDisplay:
         self.console.print()
 
         if is_ai:
-            self.console.print(f"  [cyan][/] [bold]AI Generated Commit[/]")
+            self.console.print(
+                "  [cyan][/] [bold]AI Generated Commit[/]",
+            )
         else:
-            self.console.print(f"  [cyan]✓[/] [bold]Committed[/]")
+            self.console.print(
+                "  [cyan]✓[/] [bold]Committed[/]",
+            )
 
         if commit_hash:
-            self.console.print(f"    [dim]hash:[/] [cyan]{commit_hash}[/]")
+            self.console.print(
+                f"    [dim]hash:[/] [cyan]{commit_hash}[/]",
+            )
 
         if commit_msg:
             # Wrap long messages nicely
             if len(commit_msg) > 60:
-                self.console.print(f"    [dim]msg:[/]  [white]{commit_msg[:60]}...[/]")
+                self.console.print(
+                    f"    [dim]msg:[/]  [white]{commit_msg[:60]}...[/]",
+                )
             else:
-                self.console.print(f"    [dim]msg:[/]  [white]{commit_msg}[/]")
+                self.console.print(
+                    f"    [dim]msg:[/]  [white]{commit_msg}[/]",
+                )
 
     def show_ai_commit_thinking(self, changes_count: int):
         """Show AI is analyzing changes."""
         self.console.print()
         self.console.print(
-            f"  [cyan]◆[/] [dim]analyzing {changes_count} change{'s' if changes_count != 1 else ''}...[/]"
+            f"  [cyan]◆[/] [dim]analyzing {
+                changes_count
+            } change{
+                's' if changes_count != 1 else ''
+            }...[/]"
         )
 
     def show_push_result(self, push_output: str):
@@ -186,7 +206,7 @@ class RepositoryDisplay:
                 break
 
         self.console.print()
-        self.console.print(f"  [cyan]↑[/] [white]Pushed to remote[/]")
+        self.console.print("  [cyan]↑[/] [white]Pushed to remote[/]")
 
         if branch_line:
             # Clean up the branch display
@@ -201,7 +221,7 @@ class RepositoryDisplay:
 
     def show_success(self, name: str):
         """Display success message."""
-        self.console.print(f"  [green]✓[/] [white]success[/]")
+        self.console.print("  [green]✓[/] [white]success[/]")
 
     def show_error(self, name: str, error: str):
         """Display error message."""
@@ -237,7 +257,12 @@ class GitOperationsHandler:
 
         return not is_up_to_date, stdout if stdout else stderr
 
-    def add_pull_status_to_table(self, table: Table, has_changes: bool, message: str):
+    def add_pull_status_to_table(
+        self,
+        table: Table,
+        has_changes: bool,
+        message: str,
+    ):
         """Add pull operation status to table."""
         icon = "↓" if has_changes else "○"
         status = "pulled" if has_changes else "up to date"
@@ -245,7 +270,10 @@ class GitOperationsHandler:
         table.add_row(icon, status, "")
 
     def handle_file_cleanup(self, args, table: Table) -> bool:
-        """Handle gitignore and DS_Store cleanup. Returns True if changes made."""
+        """
+        Handle gitignore and DS_Store cleanup.
+        Returns True if changes made.
+        """
         changes_made = False
 
         if args.handle_gitignore:
@@ -267,7 +295,10 @@ class GitOperationsHandler:
         """Commit using ai_commit command. Returns (success, commit_output)."""
         self.display.show_ai_commit_thinking(changes_count)
 
-        with console.status("[dim]generating commit with AI...[/]", spinner="dots"):
+        with console.status(
+            "[dim]generating commit with AI...[/]",
+            spinner="dots",
+        ):
             result = subprocess.run(
                 ["ai_commit", commit_message],
                 stdout=subprocess.PIPE,
@@ -280,17 +311,17 @@ class GitOperationsHandler:
             show_result = git_show_last_commit()
             return True, show_result.stdout
         else:
-            console.print(f"  [red]✗[/] [red]AI commit failed[/]")
+            console.print("  [red]✗[/] [red]AI commit failed[/]")
             if result.stderr.strip():
                 console.print(f"    [dim red]{result.stderr.strip()[:100]}[/]")
             return False, None
 
     def commit_standard(self, commit_message: str):
         """Perform standard git commit and return output."""
-        console.print(f"\n  [dim]staging changes...[/]")
+        console.print("\n  [dim]staging changes...[/]")
         git_add_all()
 
-        console.print(f"  [dim]committing...[/]")
+        console.print("  [dim]committing...[/]")
         git_commit(commit_message)
 
         show_result = git_show_last_commit()
@@ -306,7 +337,7 @@ class GitOperationsHandler:
                 push_result = git_push()
             return push_result.stdout
         else:
-            console.print(f"\n  [dim cyan]ℹ[/] [dim]auto-push disabled[/]")
+            console.print("\n  [dim cyan]ℹ[/] [dim]auto-push disabled[/]")
             return None
 
 
@@ -350,7 +381,10 @@ class RepositoryProcessor:
                 # Early exit for pull-only mode
                 if getattr(args, "pull_only", False):
                     has_changes = state.status_output != ""
-                    self.display.show_pull_only_message(state.name, has_changes)
+                    self.display.show_pull_only_message(
+                        state.name,
+                        has_changes,
+                    )
                     self._update_progress(progress, task_id)
                     return True
 
@@ -358,7 +392,10 @@ class RepositoryProcessor:
             self.display.show_repository_header(state, entry_path)
 
             if progress and task_id:
-                progress.update(task_id, description=f"[dim]processing {entry}[/]")
+                progress.update(
+                    task_id,
+                    description=f"[dim]processing {entry}[/]",
+                )
 
             self.display.show_branch_info(state.branch)
 
@@ -395,9 +432,14 @@ class RepositoryProcessor:
                     if not success:
                         return False
                     if commit_output:
-                        self.display.show_commit_panel(commit_output, is_ai=True)
+                        self.display.show_commit_panel(
+                            commit_output,
+                            is_ai=True,
+                        )
                 else:
-                    commit_output = self.git_ops.commit_standard(commit_message)
+                    commit_output = self.git_ops.commit_standard(
+                        commit_message,
+                    )
                     self.display.show_commit_panel(commit_output, is_ai=False)
 
                 # Push if enabled
@@ -428,7 +470,9 @@ class RepositoryProcessor:
         branch = get_current_branch()
         status_output = git_status_porcelain()
         is_clean = status_output == ""
-        changes_count = len([c for c in status_output.split("\n") if c.strip()])
+        changes_count = len(
+            [c for c in status_output.split("\n") if c.strip()],
+        )
 
         return RepositoryState(
             path=path,
@@ -494,4 +538,11 @@ def process_repository(
     backward compatibility with existing code.
     """
     processor = RepositoryProcessor()
-    return processor.process(entry_path, entry, args, task_id, progress, orig_cwd)
+    return processor.process(
+        entry_path,
+        entry,
+        args,
+        task_id,
+        progress,
+        orig_cwd,
+    )

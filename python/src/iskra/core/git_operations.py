@@ -48,7 +48,11 @@ def generate_commit_message():
     ]
 
     # Combine random selections from each category
-    return f"{random.choice(prefixes)} {random.choice(areas)} {random.choice(details)}"
+    return (
+        f"{random.choice(prefixes)}"
+        + f"{random.choice(areas)}"
+        + f"{random.choice(details)}"
+    )
 
 
 def handle_gitignore(entry_path):

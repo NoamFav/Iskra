@@ -22,7 +22,12 @@ def _match_any(repo_name: str, patterns) -> bool:
     return False
 
 
-def get_github_repos(limit=1000, filter_forks=False, only_stars=0, exclude=None):
+def get_github_repos(
+    limit=1000,
+    filter_forks=False,
+    only_stars=0,
+    exclude=None,
+):
 
     try:
 
@@ -39,10 +44,20 @@ def get_github_repos(limit=1000, filter_forks=False, only_stars=0, exclude=None)
         fields_arg = ",".join(fields)
 
         console.print(
-            f"[bold blue]{get_icon('github')} Fetching repositories from GitHub...[/]"
+            f"[bold blue]{
+                get_icon('github')
+            } Fetching repositories from GitHub...[/]"
         )
 
-        command = ["gh", "repo", "list", "--limit", str(limit), "--json", fields_arg]
+        command = [
+            "gh",
+            "repo",
+            "list",
+            "--limit",
+            str(limit),
+            "--json",
+            fields_arg,
+        ]
 
         result = subprocess.run(
             command,
@@ -59,16 +74,29 @@ def get_github_repos(limit=1000, filter_forks=False, only_stars=0, exclude=None)
 
         if only_stars > 0:
             repos = [
-                repo for repo in repos if repo.get("stargazerCount", 0) >= only_stars
+                repo
+                for repo in repos
+                if repo.get(
+                    "stargazerCount",
+                    0,
+                )
+                >= only_stars
             ]
 
         if exclude:
             repos = [
-                repo for repo in repos if not _match_any(repo["nameWithOwner"], exclude)
+                repo
+                for repo in repos
+                if not _match_any(
+                    repo["nameWithOwner"],
+                    exclude,
+                )
             ]
 
         console.print(
-            f"[bold green]{get_icon('success')} Found {len(repos)} repositories."
+            f"[bold green]{
+                get_icon('success')
+            } Found {len(repos)} repositories."
         )
 
         return repos
@@ -76,13 +104,17 @@ def get_github_repos(limit=1000, filter_forks=False, only_stars=0, exclude=None)
     except subprocess.CalledProcessError as e:
 
         console.print(
-            f"[bold red]{get_icon('error')} Error fetching repositories from GitHub:"
+            f"[bold red]{
+                get_icon('error')
+            } Error fetching repositories from GitHub:"
         )
         console.print(Panel(str(e), title="Error Details", border_style="red"))
         return []
 
     except json.JSONDecodeError as e:
 
-        console.print(f"[bold red]{get_icon('error')} Error parsing GitHub response:")
+        console.print(
+            f"[bold red]{get_icon('error')} Error parsing GitHub response:",
+        )
         console.print(Panel(str(e), title="JSON Error", border_style="red"))
         return []

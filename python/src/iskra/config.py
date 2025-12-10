@@ -1,8 +1,7 @@
-import os
 import yaml
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
 
@@ -157,7 +156,12 @@ class ConfigManager:
         try:
             with open(self.repos_file, "r") as f:
                 data = json.load(f)
-            return {path: RepoInfo.from_dict(info) for path, info in data.items()}
+            return {
+                path: RepoInfo.from_dict(
+                    info,
+                )
+                for path, info in data.items()
+            }
         except Exception as e:
             print(f"Warning: Could not load tracked repos: {e}")
             return {}
@@ -244,7 +248,9 @@ class ConfigManager:
                 data = yaml.safe_load(f) or {}
             return RepoConfig.from_dict(data)
         except Exception as e:
-            print(f"Warning: Could not load repo config from {config_path}: {e}")
+            print(
+                f"Warning: Could not load repo config from {config_path}: {e}",
+            )
             return None
 
     def merge_config(self, repo_path: str) -> GlobalConfig:
@@ -271,7 +277,11 @@ class ConfigManager:
         data = {
             "global_config": self.global_config.to_dict(),
             "tracked_repos": {
-                path: info.to_dict() for path, info in self.tracked_repos.items()
+                path: info.to_dict()
+                for (
+                    path,
+                    info,
+                ) in self.tracked_repos.items()
             },
         }
 

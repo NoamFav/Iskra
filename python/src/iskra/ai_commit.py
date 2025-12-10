@@ -15,7 +15,10 @@ def main():
     binpath = _binary_path()
 
     if not os.path.exists(binpath):
-        print(f"FATAL: bundled ai_commit binary not found: {binpath}", file=sys.stderr)
+        print(
+            f"FATAL: bundled ai_commit binary not found: {binpath}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     os.execv(binpath, [binpath, *sys.argv[1:]])

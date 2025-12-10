@@ -169,7 +169,11 @@ def example_repo_management():
         print("Repository added")
 
     # Update repository config
-    manager.update_repo_config("/path/to/repo", active=True, default_branch="main")
+    manager.update_repo_config(
+        "/path/to/repo",
+        active=True,
+        default_branch="main",
+    )
 
     # Remove repository
     removed = manager.remove_repo("/path/to/old/repo")
@@ -205,7 +209,7 @@ def example_validation():
             print(f"  - {file}")
 
     # Safe to proceed with operations
-    result = manager.process_repo(repo_path, commit=True, push=True)
+    manager.process_repo(repo_path, commit=True, push=True)
 
 
 # ============================================================================
@@ -272,7 +276,7 @@ def zvezda_intelligent_workflow():
     synced = len(repos_to_sync)
     behind = len(repos_behind)
 
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print(f"Total repos: {total}")
     print(f"Synced: {synced}")
     print(f"Behind: {behind}")
@@ -310,7 +314,7 @@ def example_custom_commits():
         message = "chore: general updates"
 
     # Commit with custom message
-    result = manager.commit_repo(repo_path, message)
+    manager.commit_repo(repo_path, message)
     print(f"Committed: {message}")
 
 

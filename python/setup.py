@@ -1,4 +1,6 @@
-import os, subprocess, pathlib
+import os
+import subprocess
+import pathlib
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py as _build_py
 
@@ -32,8 +34,15 @@ class build_py(_build_py):
 setup(
     name="Iskra",
     version="1.7.3",
-    description="Intelligent multi-repository Git automation tool with AI-powered commit messages",
-    long_description=open("README.md").read() if os.path.exists("README.md") else "",
+    description="Intelligent multi-repository Git automation"
+    + "tool with AI-powered commit messages",
+    long_description=(
+        open("README.md").read()
+        if os.path.exists(
+            "README.md",
+        )
+        else ""
+    ),
     long_description_content_type="text/markdown",
     author="NoamFav",
     author_email="noamfav@nf-software.com",

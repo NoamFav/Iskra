@@ -46,14 +46,21 @@ def get_git_info(repo_path: str) -> dict:
     try:
 
         result = subprocess.run(
-            ["git", "remote", "get-url", "origin"], capture_output=True, text=True
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True,
+            text=True,
         )
         remote_url = result.stdout.strip() if result.returncode == 0 else None
 
         result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
         )
-        default_branch = result.stdout.strip() if result.returncode == 0 else None
+
+        default_branch = None
+        if result.returncode == 0:
+            default_branch = result.stdout.strip()
 
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True
@@ -73,7 +80,9 @@ def get_git_info(repo_path: str) -> dict:
 def scan_repositories(base_dir: str, config: GlobalConfig) -> List[str]:
 
     console.print(
-        f"\n[bold blue]{get_icon('folder')} Scanning for repositories in {base_dir}...[/]"
+        f"\n[bold blue]{
+            get_icon('folder')
+        } Scanning for repositories in {base_dir}...[/]"
     )
 
     repos = find_git_repos(
@@ -85,7 +94,9 @@ def scan_repositories(base_dir: str, config: GlobalConfig) -> List[str]:
     )
 
     console.print(
-        f"[bold green]{get_icon('success')} Found {len(repos)} repositories[/]\n"
+        f"[bold green]{
+            get_icon('success')
+        } Found {len(repos)} repositories[/]\n"
     )
     return repos
 
@@ -135,7 +146,7 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
                 "[bold white]Iskra Initialization[/]",
                 border_style="cyan",
                 title="[bold blue]Setup[/]",
-                subtitle=f"[dim]Version 1.0.0[/]",
+                subtitle="[dim]Version 1.0.0[/]",
             )
         )
 
@@ -156,13 +167,24 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
     if not base_dir.exists():
         if rich_enabled:
             console.print(
-                f"[yellow]{get_icon('warning')} Base directory does not exist: {base_dir}[/]"
+                f"[yellow]{
+                    get_icon('warning')
+                } Base directory does not exist: {base_dir}[/]"
             )
 
-        if args.yes or not rich_enabled or Confirm.ask("Create it?", default=True):
+        if (
+            args.yes
+            or not rich_enabled
+            or Confirm.ask(
+                "Create it?",
+                default=True,
+            )
+        ):
             base_dir.mkdir(parents=True, exist_ok=True)
             if rich_enabled:
-                console.print(f"[green]{get_icon('success')} Created directory[/]")
+                console.print(
+                    f"[green]{get_icon('success')} Created directory[/]",
+                )
         else:
 
             if rich_enabled:
@@ -180,14 +202,21 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
             return
 
     if rich_enabled and not args.yes:
-        console.print("\n[bold cyan]Configuration Options[/]")
+        console.print(
+            "\n[bold cyan]Configuration Options[/]",
+        )
 
         if Confirm.ask(
-            f"Change max scan depth? (current: {config_manager.global_config.max_depth})",
+            f"Change max scan depth? (current: {
+                config_manager.global_config.max_depth
+            })",
             default=False,
         ):
             depth = Prompt.ask(
-                "Max depth", default=str(config_manager.global_config.max_depth)
+                "Max depth",
+                default=str(
+                    config_manager.global_config.max_depth,
+                ),
             )
             config_manager.global_config.max_depth = int(depth)
 
@@ -209,7 +238,10 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
     config_manager.save_global_config(config_manager.global_config)
 
     if rich_enabled:
-        repo_paths = scan_repositories(str(base_dir), config_manager.global_config)
+        repo_paths = scan_repositories(
+            str(base_dir),
+            config_manager.global_config,
+        )
     else:
 
         repo_paths = find_git_repos(
@@ -222,7 +254,9 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
 
     if not repo_paths:
         if rich_enabled:
-            console.print(f"[yellow]{get_icon('warning')} No repositories found[/]")
+            console.print(
+                f"[yellow]{get_icon('warning')} No repositories found[/]",
+            )
         payload = OutputPayload(
             success=True,
             operation="init",
@@ -277,7 +311,10 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             console=console,
         ) as progress:
-            task = progress.add_task("Tracking repositories...", total=len(repo_paths))
+            task = progress.add_task(
+                "Tracking repositories...",
+                total=len(repo_paths),
+            )
 
             for repo_path in repo_paths:
                 name = os.path.basename(repo_path)
@@ -353,15 +390,23 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
 
     if rich_enabled:
         console.print(
-            f"\n[bold green]{get_icon('success')} Successfully tracked {tracked_count} repositories![/]\n"
+            f"\n[bold green]{
+                get_icon('success')
+            } Successfully tracked {tracked_count} repositories![/]\n"
         )
 
         if args.show_repos or (
-            not args.yes and Confirm.ask("Show tracked repositories?", default=True)
+            not args.yes
+            and Confirm.ask(
+                "Show tracked repositories?",
+                default=True,
+            )
         ):
             display_repo_table(config_manager.get_all_repos())
 
-        console.print(f"\n[dim]Configuration saved to: {config_manager.config_dir}[/]")
+        console.print(
+            f"\n[dim]Configuration saved to: {config_manager.config_dir}[/]",
+        )
         console.print(f"[dim]  • Config: {config_manager.config_file}[/]")
         console.print(f"[dim]  • Repos:  {config_manager.repos_file}[/]")
         console.print(f"[dim]  • Logs:   {config_manager.logs_dir}[/]")
@@ -383,14 +428,20 @@ def list_command(args, formatter, json_mode: bool, quiet: bool):
     rich_enabled = not (json_mode or quiet)
     config_manager = ConfigManager()
 
-    repos = config_manager.get_all_repos(active_only=not args.all)
+    repos = config_manager.get_all_repos(
+        active_only=not args.all,
+    )
 
     if not repos:
         if rich_enabled:
             console.print(
-                f"[yellow]{get_icon('warning')} No tracked repositories found[/]"
+                f"[yellow]{
+                    get_icon('warning')
+                } No tracked repositories found[/]"
             )
-            console.print(f"\n[dim]Run 'iskra init' to scan and track repositories[/]")
+            console.print(
+                "\n[dim]Run 'iskra init' to scan and track repositories[/]",
+            )
 
         payload = OutputPayload(
             success=True,
@@ -447,7 +498,9 @@ def add_command(args, formatter, json_mode: bool, quiet: bool):
 
     if repo_root is None:
         # not a git repo anywhere up the tree
-        console.print(f"[red]Not a git repository: {args.path}[/]")
+        console.print(
+            f"[red]Not a git repository: {args.path}[/]",
+        )
         payload = OutputPayload(
             success=False,
             operation="init",
@@ -480,11 +533,15 @@ def add_command(args, formatter, json_mode: bool, quiet: bool):
     if rich_enabled:
         if added:
             console.print(
-                f"[green]{get_icon('success')} Added repository: {repo_path.name}[/]"
+                f"[green]{
+                    get_icon('success')
+                } Added repository: {repo_path.name}[/]"
             )
         else:
             console.print(
-                f"[yellow]{get_icon('warning')} Repository already tracked[/]"
+                f"[yellow]{
+                    get_icon('warning')
+                } Repository already tracked[/]"
             )
 
     payload = OutputPayload(
@@ -540,15 +597,23 @@ def remove_command(args, formatter, json_mode: bool, quiet: bool):
 
     repo_path = Path(repo_root)
 
-    removed = config_manager.remove_repo(str(repo_path))
+    removed = config_manager.remove_repo(
+        str(
+            repo_path,
+        )
+    )
 
     if rich_enabled:
         if removed:
             console.print(
-                f"[green]{get_icon('success')} Removed repository: {repo_path}[/]"
+                f"[green]{
+                    get_icon('success')
+                } Removed repository: {repo_path}[/]"
             )
         else:
-            console.print(f"[yellow]{get_icon('warning')} Repository not tracked[/]")
+            console.print(
+                f"[yellow]{get_icon('warning')} Repository not tracked[/]",
+            )
 
     payload = OutputPayload(
         success=bool(removed),
@@ -587,17 +652,30 @@ def main(argv: list[str] | None = None):
         help="Suppress Rich UI and output only JSON.",
     )
 
-    subparsers = parser.add_subparsers(dest="command", help="Command to run")
+    subparsers = parser.add_subparsers(
+        dest="command",
+        help="Command to run",
+    )
 
     init_parser = subparsers.add_parser(
-        "init", help="Initialize configuration and scan for repos"
-    )
-    init_parser.add_argument("--base-dir", type=str, help="Base directory to scan")
-    init_parser.add_argument(
-        "-y", "--yes", action="store_true", help="Accept all defaults"
+        "init",
+        help="Initialize configuration and scan for repos",
     )
     init_parser.add_argument(
-        "--show-repos", action="store_true", help="Show tracked repos after init"
+        "--base-dir",
+        type=str,
+        help="Base directory to scan",
+    )
+    init_parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Accept all defaults",
+    )
+    init_parser.add_argument(
+        "--show-repos",
+        action="store_true",
+        help="Show tracked repos after init",
     )
 
     list_parser = subparsers.add_parser(
@@ -606,7 +684,9 @@ def main(argv: list[str] | None = None):
         help="List tracked repositories",
     )
     list_parser.add_argument(
-        "--all", action="store_true", help="Include inactive repos"
+        "--all",
+        action="store_true",
+        help="Include inactive repos",
     )
 
     add_parser = subparsers.add_parser(
@@ -638,7 +718,11 @@ def main(argv: list[str] | None = None):
     json_mode = bool(getattr(args, "json", False))
     quiet = bool(getattr(args, "quiet", False))
 
-    formatter = get_formatter(json_mode=json_mode, quiet=quiet, console=console)
+    formatter = get_formatter(
+        json_mode=json_mode,
+        quiet=quiet,
+        console=console,
+    )
 
     if args.command == "init":
         init_command(args, formatter, json_mode, quiet)

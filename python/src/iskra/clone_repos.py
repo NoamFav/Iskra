@@ -47,7 +47,9 @@ def main(argv: Optional[list[str]] = None):
     )
 
     parser.add_argument(
-        "--filter-forks", action="store_true", help="Filter out forked repositories."
+        "--filter-forks",
+        action="store_true",
+        help="Filter out forked repositories.",
     )
 
     parser.add_argument(
@@ -62,7 +64,8 @@ def main(argv: Optional[list[str]] = None):
         type=str,
         nargs="+",
         default=[],
-        help="List of repository name patterns to exclude (supports glob patterns).",
+        help="List of repository name patterns to exclude"
+        + "(supports glob patterns).",
     )
 
     parser.add_argument(
@@ -83,9 +86,16 @@ def main(argv: Optional[list[str]] = None):
 
     base_dir = args.base_dir
 
-    formatter = get_formatter(json_mode=args.json, quiet=args.quiet, console=console)
+    formatter = get_formatter(
+        json_mode=args.json,
+        quiet=args.quiet,
+        console=console,
+    )
 
-    print_header("GitHub Repository Clone Manager", title="GitHub Clone Manager")
+    print_header(
+        "GitHub Repository Clone Manager",
+        title="GitHub Clone Manager",
+    )
 
     config_table = create_config_table(args, for_pull_repos=True)
     console.print(config_table)
@@ -110,8 +120,12 @@ def main(argv: Optional[list[str]] = None):
 
     if not (args.json or args.quiet):
         summary_panel = Panel(
-            f"{get_icon('github')} Found [bold green]{total}[/] repositories to process\n"
-            + f"{get_icon('folder')} Target directory: [bold blue]{base_dir}[/]",
+            f"{
+                get_icon('github')
+            } Found [bold green]{total}[/] repositories to process\n"
+            + f"{
+                get_icon('folder')
+            } Target directory: [bold blue]{base_dir}[/]",
             title="Repository Summary",
             border_style="blue",
         )
@@ -131,7 +145,15 @@ def main(argv: Optional[list[str]] = None):
             status: RepoStatusType = "success" if ok else "failed"
 
             repo_name = repo.get("name", "")
-            repo_short_name = repo_name or repo.get("nameWithOwner", "").split("/")[-1]
+            repo_short_name = (
+                repo_name
+                or repo.get(
+                    "nameWithOwner",
+                    "",
+                ).split(
+                    "/"
+                )[-1]
+            )
 
             repo_path = os.path.join(base_dir, repo_short_name)
 
@@ -152,7 +174,9 @@ def main(argv: Optional[list[str]] = None):
         if not (args.json or args.quiet):
             console.print()
             final_panel = Panel(
-                f"{get_icon('sparkles')} [bold]{success_count}/{total}[/] repositories "
+                f"{
+                    get_icon('sparkles')
+                } [bold]{success_count}/{total}[/] repositories "
                 f"processed successfully {get_icon('sparkles')}",
                 border_style="green" if success_count == total else "yellow",
                 title="Processing Complete",
@@ -163,7 +187,9 @@ def main(argv: Optional[list[str]] = None):
 
         if not (args.json or args.quiet):
             console.print(
-                f"[bold yellow]{get_icon('warning')} No repositories found to process[/]"
+                f"[bold yellow]{
+                    get_icon('warning')
+                } No repositories found to process[/]"
             )
 
     payload = OutputPayload(
@@ -185,6 +211,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
 
         console.print("\n[bold red]Operation canceled by user[/]")
-    except Exception as e:
+    except Exception:
 
         console.print_exception()

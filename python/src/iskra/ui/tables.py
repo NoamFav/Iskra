@@ -18,30 +18,53 @@ def create_config_table(args, for_pull_repos=False):
 
     if for_pull_repos:
 
-        config_table.add_row("Base Directory", args.base_dir)
+        config_table.add_row(
+            "Base Directory",
+            args.base_dir,
+        )
 
-        config_table.add_row("Repo Limit", str(args.limit))
+        config_table.add_row(
+            "Repo Limit",
+            str(args.limit),
+        )
 
-        config_table.add_row("Filter Forks", "Yes" if args.filter_forks else "No")
+        config_table.add_row(
+            "Filter Forks",
+            "Yes" if args.filter_forks else "No",
+        )
 
-        config_table.add_row("Minimum Stars", str(args.only_stars))
+        config_table.add_row(
+            "Minimum Stars",
+            str(args.only_stars),
+        )
 
         if args.exclude:
-            config_table.add_row("Excluded Patterns", ", ".join(args.exclude))
+            config_table.add_row(
+                "Excluded Patterns",
+                ", ".join(args.exclude),
+            )
 
     else:
 
-        config_table.add_row("Pull Changes", "Yes" if args.pull else "No")
-
         config_table.add_row(
-            "Handle .gitignore", "Yes" if args.handle_gitignore else "No"
+            "Pull Changes",
+            "Yes" if args.pull else "No",
         )
 
         config_table.add_row(
-            "Remove .DS_Store", "Yes" if args.remove_ds_store else "No"
+            "Handle .gitignore",
+            "Yes" if args.handle_gitignore else "No",
         )
 
-        config_table.add_row("Using ai_commit", "Yes" if args.use_ai_commit else "No")
+        config_table.add_row(
+            "Remove .DS_Store",
+            "Yes" if args.remove_ds_store else "No",
+        )
+
+        config_table.add_row(
+            "Using ai_commit",
+            "Yes" if args.use_ai_commit else "No",
+        )
 
         config_table.add_row(
             "Commit Message",
@@ -53,9 +76,15 @@ def create_config_table(args, for_pull_repos=False):
         )
 
         if args.exclude:
-            config_table.add_row("Excluded", ", ".join(args.exclude))
+            config_table.add_row(
+                "Excluded",
+                ", ".join(args.exclude),
+            )
 
         if args.only:
-            config_table.add_row("Only", ", ".join(args.only))
+            config_table.add_row(
+                "Only",
+                ", ".join(args.only),
+            )
 
     return config_table

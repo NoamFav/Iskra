@@ -105,17 +105,29 @@ def process_repository(repo_info, base_dir, total, current):
             repo_dir = os.path.join(base_dir, repo_short_name)
             if os.path.isdir(repo_dir):
 
-                file_count = sum(len(files) for _, _, files in os.walk(repo_dir))
+                file_count = sum(
+                    len(files)
+                    for _, _, files in os.walk(
+                        repo_dir,
+                    )
+                )
                 dir_count = sum(len(dirs) for _, dirs, _ in os.walk(repo_dir))
 
-                stats_table = Table(show_header=False, box=None, pad_edge=False)
+                stats_table = Table(
+                    show_header=False,
+                    box=None,
+                    pad_edge=False,
+                )
                 stats_table.add_column("", style="cyan")
                 stats_table.add_column("", style="white")
 
                 stats_table.add_row(
                     f"{get_icon('folder')} Directories:", f"{dir_count}"
                 )
-                stats_table.add_row(f"{get_icon('file')} Files:", f"{file_count}")
+                stats_table.add_row(
+                    f"{get_icon('file')} Files:",
+                    f"{file_count}",
+                )
                 stats_table.add_row(
                     f"{get_icon('code')} Repository size:",
                     f"{get_repo_size_str(repo_dir)}",
@@ -126,9 +138,13 @@ def process_repository(repo_info, base_dir, total, current):
         except subprocess.CalledProcessError as e:
 
             ok = False
-            console.print(f"[bold red]{get_icon('error')} Error cloning repository:")
+            console.print(
+                f"[bold red]{get_icon('error')} Error cloning repository:",
+            )
 
-            console.print(Panel(e.stderr, title="Error Details", border_style="red"))
+            console.print(
+                Panel(e.stderr, title="Error Details", border_style="red"),
+            )
 
     separator_count = shutil.get_terminal_size().columns // 2
     console.print(f"[dim cyan]{get_icon('separator') * separator_count}[/]")

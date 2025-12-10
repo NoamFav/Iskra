@@ -28,7 +28,8 @@ def print_header(text, title="Git Project Manager"):
     # Minimal centered header
     console.print(f"[bold white]{text}[/]", justify="center")
     console.print(
-        f"[dim]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/]", justify="center"
+        f"[dim]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/]",
+        justify="center",
     )
 
     console.print()
