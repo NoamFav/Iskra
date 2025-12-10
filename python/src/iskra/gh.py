@@ -1,12 +1,10 @@
 # src/iskra/gh.py
-import os
 import sys
 import subprocess
 import argparse
 import webbrowser
 
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 from iskra.ui.formatting import get_icon
