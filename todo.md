@@ -112,8 +112,8 @@ iskra status --format table     # Rich table (default)
 
 **Tasks:**
 
-- [ ] Create `iskra status` subcommand
-- [ ] Implement detailed status gathering:
+- [x] Create `iskra status` subcommand
+- [x] Implement detailed status gathering:
 
   ```python
   def get_detailed_status(repo_path: str) -> RepoStatus:
@@ -132,13 +132,13 @@ iskra status --format table     # Rich table (default)
       )
   ```
 
-- [ ] Display formats:
+- [x] Display formats:
 
   - Table view (Rich)
   - JSON output
   - Compact one-line per repo
 
-- [ ] Add filters to status:
+- [x] Add filters to status:
 
   ```bash
   iskra status --has-changes
@@ -146,8 +146,8 @@ iskra status --format table     # Rich table (default)
   iskra status --on-branch main
   ```
 
-- [ ] Show summary statistics
-- [ ] Cache status results (with TTL)
+- [x] Show summary statistics
+- [x] Cache status results (with TTL)
 - [ ] Add `--refresh` to bypass cache
 
 **Files to modify:**

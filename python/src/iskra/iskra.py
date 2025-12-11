@@ -3,406 +3,59 @@ import sys
 import subprocess
 import argparse
 from datetime import datetime
-from dataclasses import dataclass
 from typing import Optional
 
 from rich.console import Console
-from rich.prompt import Confirm
 
+from iskra.core.processing_stats import ProcessingStats
 from iskra.config import ConfigManager, get_config
-from iskra.ui.display import process_repository
-from iskra.ui.formatting import print_header, get_icon
-from iskra.core.repo_scanner import find_git_repos
-from iskra.output.formatter import get_formatter, OutputPayload, RepoResult
-
+from iskra.core.repository_processor import RepositoryProcessor
+from iskra.core.repository_selector import RepositorySelector
+from iskra.core.ui_manager import UIManager
+from iskra.core.command_router import CommandRouter
+from iskra.ui.formatting import get_icon
+from iskra.output.formatter import get_formatter, OutputPayload
+from iskra.core.filters import RepoFilter
+from typing import Any, Dict
 
 console = Console()
 
 
-@dataclass
-class ProcessingStats:
-    """Track repository processing statistics."""
+def build_repo_filters(args) -> Dict[str, Any]:
+    """Translate CLI flags into RepoFilter.apply_filters kwargs."""
+    filters: dict = {}
 
-    success_count: int = 0
-    clean_count: int = 0
-    dirty_count: int = 0
+    if args.has_changes:
+        filters["has_changes"] = True
 
+    if args.dirty:
+        # semantic alias for "has_changes"
+        filters["is_dirty"] = True
 
-class CommandRouter:
-    """Route and transform command-line arguments."""
+    if args.clean:
+        filters["is_clean"] = True
 
-    COMMAND_MAPPINGS = {
-        "scan": ["--scan", "--status-only"],
-        "pulse": ["--pulse"],
-        "status": ["--status-only"],
-        "sync": ["--pull", "--pull-only", "--pulse", "-y"],
-        "sync-all": ["--pull", "--pull-only", "-y"],
-    }
+    if args.behind_remote:
+        filters["behind_remote"] = True
 
-    @classmethod
-    def route(cls, argv: list[str]) -> list[str]:
-        """Transform command shortcuts into full argument lists."""
-        if not argv:
-            return argv
+    if args.ahead_remote:
+        filters["ahead_remote"] = True
 
-        cmd = argv[0]
+    if args.conflicts:
+        filters["has_conflicts"] = True
 
-        # Handle init subcommands separately
-        if cmd == "init":
-            from iskra import init as init_cli
+    if args.on_branch:
+        # nargs="+" → list[str]
+        filters["on_branch"] = args.on_branch
 
-            subcmd = ["init"] if len(argv) == 1 else argv[1:]
-            sys.exit(init_cli.main(subcmd))
-        if cmd == "clone":
-            from iskra import clone_repos as clone_cli
-
-            sys.exit(clone_cli.main(argv[1:]))
-        if cmd == "gh":
-            from iskra import gh as gh_cli
-
-            sys.exit(gh_cli.main(argv[1:]))
-        # Handle commit command (default behavior)
-        if cmd == "commit":
-            return argv[1:]
-
-        # Map other commands
-        if cmd in cls.COMMAND_MAPPINGS:
-            return argv[1:] + cls.COMMAND_MAPPINGS[cmd]
-
-        return argv
-
-
-class RepositorySelector:
-    """Select and filter repositories based on configuration."""
-
-    def __init__(self, config_manager: ConfigManager, config, base_dir: str):
-        self.config_manager = config_manager
-        self.config = config
-        self.base_dir = base_dir
-
-    def get_repositories(
-        self, scan: bool, pulse: bool
-    ) -> tuple[list[tuple[str, str]], list]:
-        """Get repositories to process based on mode."""
-        if pulse:
-            return self._get_pulse_repo(), []
-
-        tracked_repos = self.config_manager.get_all_repos(active_only=True)
-
-        if scan or not tracked_repos:
-            return self._scan_repositories(), []
-
-        return self._get_tracked_repositories(tracked_repos), tracked_repos
-
-    def _get_pulse_repo(self) -> list[tuple[str, str]]:
-        """Get the current repository for pulse mode."""
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            raise RuntimeError("not_in_git_repo")
-
-        repo_root = result.stdout.strip()
-        return [(repo_root, os.path.basename(repo_root))]
-
-    def _scan_repositories(self) -> list[tuple[str, str]]:
-        """Scan for repositories in the base directory."""
-        git_repo_paths = find_git_repos(
-            base_dir=self.base_dir,
-            only=self.config.only_patterns,
-            exclude=self.config.exclude_patterns,
-            max_depth=self.config.max_depth,
-            followlinks=self.config.follow_symlinks,
-        )
-        return [
-            (
-                path,
-                os.path.relpath(
-                    path,
-                    self.base_dir,
-                ),
-            )
-            for path in git_repo_paths
-        ]
-
-    def _get_tracked_repositories(
-        self,
-        tracked_repos,
-    ) -> list[
-        tuple[
-            str,
-            str,
-        ]
-    ]:
-        """Get tracked repositories with filtering applied."""
-        git_repos = []
-
-        for repo_info in tracked_repos:
-            if self._should_include_repo(repo_info.name):
-                git_repos.append((repo_info.path, repo_info.name))
-
-        return git_repos
-
-    def _should_include_repo(self, repo_name: str) -> bool:
-        """Check if repository passes include/exclude filters."""
-        from fnmatch import fnmatch
-
-        if self.config.only_patterns:
-            if not any(
-                fnmatch(
-                    repo_name,
-                    pat,
-                )
-                for pat in self.config.only_patterns
-            ):
-                return False
-
-        if self.config.exclude_patterns:
-            if any(
-                fnmatch(
-                    repo_name,
-                    pat,
-                )
-                for pat in self.config.exclude_patterns
-            ):
-                return False
-
-        return True
-
-
-class RepositoryProcessor:
-    """Process repositories with the given configuration."""
-
-    def __init__(self, config_manager: ConfigManager, orig_cwd: str):
-        self.config_manager = config_manager
-        self.orig_cwd = orig_cwd
-
-    def process_all(
-        self,
-        git_repos: list[tuple[str, str]],
-        args,
-        tracked_repos: list,
-        rich_enabled: bool,
-    ) -> tuple[list[RepoResult], ProcessingStats]:
-        """Process all repositories and return results."""
-        results = []
-        stats = ProcessingStats()
-
-        for idx, (repo_path, display_name) in enumerate(git_repos, 1):
-            if rich_enabled and not args.compact:
-                console.print(
-                    f"\n[bold cyan]Repository {idx}/{len(git_repos)}:[/]",
-                )
-
-            result = self._process_single_repo(
-                repo_path, display_name, args, tracked_repos
-            )
-
-            results.append(result)
-            if result.status == "success":
-                stats.success_count += 1
-
-        return results, stats
-
-    def _process_single_repo(
-        self, repo_path: str, display_name: str, args, tracked_repos: list
-    ) -> RepoResult:
-        """Process a single repository."""
-        config = self.config_manager.merge_config(repo_path)
-
-        # Skip repos without changes if configured
-        if config.skip_repos_without_changes and not self._has_changes(
-            repo_path,
-        ):
-            if not args.quiet and not args.json:
-                console.print(
-                    f"[dim]{get_icon('info')} No changes, skipping[/]",
-                )
-            return RepoResult(
-                path=repo_path,
-                name=display_name,
-                status="skipped",
-            )
-
-        # Create repository-specific args
-        repo_args = self._create_repo_args(config, args)
-
-        # Process the repository
-        success = process_repository(
-            entry_path=repo_path,
-            entry=display_name,
-            args=repo_args,
-            task_id=None,
-            progress=None,
-            orig_cwd=self.orig_cwd,
-        )
-
-        # Update tracked repo if successful
-        if success and tracked_repos:
-            self._update_tracked_repo(repo_path)
-
-        return RepoResult(
-            path=repo_path,
-            name=display_name,
-            status="success" if success else "failed",
-        )
-
-    def _has_changes(self, repo_path: str) -> bool:
-        """Check if repository has uncommitted changes."""
-        os.chdir(repo_path)
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-        )
-        os.chdir(self.orig_cwd)
-        return bool(result.stdout.strip())
-
-    def _create_repo_args(self, config, args_orig):
-        """Create repository-specific arguments."""
-
-        class RepoArgs:
-            def __init__(self, cfg, orig):
-                self.pull = cfg.auto_pull
-                self.handle_gitignore = orig.handle_gitignore
-                self.remove_ds_store = orig.remove_ds_store
-                self.use_ai_commit = cfg.use_ai_commit
-                self.commit_message = orig.commit_message
-                self.dry_run = cfg.dry_run
-                self.status_only = orig.status_only
-                self.compact = getattr(orig, "compact", False)
-                self.show_diff = cfg.show_diff
-                self.auto_push = cfg.auto_push
-                self.pull_only = orig.pull_only
-
-        return RepoArgs(config, args_orig)
-
-    def _update_tracked_repo(self, repo_path: str):
-        """Update tracked repository's last commit hash."""
-        result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            capture_output=True,
-            text=True,
-            cwd=repo_path,
-        )
-        if result.returncode == 0:
-            self.config_manager.update_repo(
-                repo_path, last_commit=result.stdout.strip()
-            )
-
-
-class UIManager:
-    """Manage user interface output and interaction."""
-
-    def __init__(self, rich_enabled: bool):
-        self.rich_enabled = rich_enabled
-
-    def show_header(self):
-        """Display application header."""
-        if self.rich_enabled:
-            print_header("Git Repository Manager")
-
-    def show_mode_warnings(self, args):
-        """Display mode warnings and information."""
-        if not self.rich_enabled:
-            return
-
-        if args.dry_run:
-            console.print(
-                (
-                    "[dim yellow]⚠[/]  "
-                    "[yellow]dry run mode[/] "
-                    "[dim]— no changes will be made[/]\n"
-                )
-            )
-
-        if args.status_only:
-            mode_text = "[dim cyan]ℹ[/]  [cyan]status only mode[/]"
-            if args.compact:
-                mode_text += " [dim]— compact display for clean repos[/]"
-            console.print(f"{mode_text}\n")
-
-    def show_repository_summary(self, repo_count: int, message: str = ""):
-        """Display repository count summary."""
-        if not self.rich_enabled:
-            return
-
-        if message:
-            console.print(
-                f"[dim]{message}[/]\n",
-            )
-
-        console.print(
-            f"[white]Found[/] [bold]{repo_count}[/] [white]repositories[/]\n",
-        )
-
-    def confirm_processing(self, repo_count: int) -> bool:
-        """Ask user to confirm processing."""
-        if not self.rich_enabled:
-            return True
-
-        if not Confirm.ask(
-            f"Process {repo_count} repositories?",
-            default=True,
-        ):
-            console.print("[dim yellow]cancelled[/]")
-            return False
-
-        return True
-
-    def show_final_summary(self, args, stats, total: int):
-        """Display final processing summary."""
-        if not self.rich_enabled:
-            return
-
-        console.print()
-
-        if args.status_only and args.compact:
-            self._show_compact_summary(stats, total)
-        else:
-            self._show_standard_summary(
-                stats.success_count,
-                total,
-            )
-
-    def _show_compact_summary(self, stats, total: int):
-        """Show compact summary with clean/dirty breakdown."""
-        console.print("[dim]Summary:[/]")
-        console.print(
-            f"  [green]✓[/] [dim]clean:[/] [green]{
-                stats.clean_count
-            }[/]"
-        )
-        console.print(
-            f"  [yellow]●[/] [dim]with changes:[/] [yellow]{
-                stats.dirty_count
-            }[/]"
-        )
-        console.print(f"  [dim]total:[/] [white]{total}[/]")
-        console.print()
-
-    def _show_standard_summary(self, success_count: int, total: int):
-        """Show standard success summary."""
-        all_success = success_count == total
-        status = "✓" if all_success else "◆"
-        color = "green" if all_success else "yellow"
-
-        console.print(
-            f"[{color}]{status}[/] "
-            f"[white]Processed[/] [bold]{success_count}/{total}[/] "
-            f"[dim]repositories[/]"
-        )
-        console.print()
+    return filters
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
     """Create and configure argument parser."""
     parser = argparse.ArgumentParser(
-        description="""
-        Iskra - Intelligent Git automation with configuration management
-        """,
+        description="Iskra - "
+        + "Intelligent Git automation with configuration management",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -479,6 +132,52 @@ def create_argument_parser() -> argparse.ArgumentParser:
         type=str,
         nargs="+",
         default=[],
+    )
+
+    # Smart filtering
+    parser.add_argument(
+        "--has-changes",
+        "-c",
+        action="store_true",
+        help="Has uncommitted changes",
+    )
+
+    parser.add_argument(
+        "--behind-remote",
+        action="store_true",
+        help="Behind remote (needs pull)",
+    )
+
+    parser.add_argument(
+        "--ahead-remote",
+        action="store_true",
+        help="Ahead remote (needs push)",
+    )
+
+    parser.add_argument(
+        "--on-branch",
+        type=str,
+        nargs="+",
+        default=[],
+        help="On specific branch",
+    )
+
+    parser.add_argument(
+        "--dirty",
+        action="store_true",
+        help="Has untracked/modified files",
+    )
+
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="No changes at all",
+    )
+
+    parser.add_argument(
+        "--conflicts",
+        action="store_true",
+        help="Has merge conflicts",
     )
 
     # Behavior
@@ -613,13 +312,17 @@ def main(argv: Optional[list[str]] = None):
     orig_cwd = os.getcwd()
 
     # Initialize UI
-    ui = UIManager(rich_enabled)
+    ui = UIManager(rich_enabled, console)
     ui.show_header()
     ui.show_mode_warnings(args)
 
     # Select repositories
     try:
-        selector = RepositorySelector(config_manager, config, base_dir)
+        selector = RepositorySelector(
+            config_manager,
+            config,
+            base_dir,
+        )
         git_repos, tracked_repos = selector.get_repositories(
             args.scan,
             args.pulse,
@@ -643,6 +346,27 @@ def main(argv: Optional[list[str]] = None):
             formatter.emit(payload)
             return
         raise
+    repo_filter_kwargs = build_repo_filters(args)
+    if repo_filter_kwargs:
+        # git_repos is a list of (path, meta) tuples
+        repo_paths = [path for path, _ in git_repos]
+        filtered_paths = set(
+            RepoFilter.apply_filters(
+                repo_paths,
+                **repo_filter_kwargs,
+            )
+        )
+        git_repos = [
+            (
+                path,
+                meta,
+            )
+            for (
+                path,
+                meta,
+            ) in git_repos
+            if path in filtered_paths
+        ]
 
     # Handle empty repository list
     if not git_repos:
@@ -699,7 +423,7 @@ def main(argv: Optional[list[str]] = None):
             } repositories {mode}...[/]\n"
         )
 
-    processor = RepositoryProcessor(config_manager, orig_cwd)
+    processor = RepositoryProcessor(config_manager, orig_cwd, console)
     repo_results, stats = processor.process_all(
         git_repos, args, tracked_repos, rich_enabled
     )
