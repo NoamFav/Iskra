@@ -118,3 +118,190 @@ def get_github_repos(
         )
         console.print(Panel(str(e), title="JSON Error", border_style="red"))
         return []
+
+
+def get_pr(
+    limit=1000,
+    filter_closed=True,
+    filter_open=False,
+    filter_need_review=False,
+    filter_require_changes=False,
+    filter_draft=False,
+    exclude=None,
+    repo=None,
+):
+    try:
+        fields = [
+            "number",
+            "title",
+            "state",
+            "isDraft",
+            "url",
+            "createdAt",
+            "updatedAt",
+            "author",
+            "headRefName",
+            "baseRefName",
+            "reviewDecision",
+        ]
+
+        console.print(
+            f"[bold blue]{
+                get_icon('github')
+            } Fetching pull requests from GitHub...[/]"
+        )
+
+        # Decide state: default to closed unless open explicitly requested
+        state = "all"
+        if filter_open and not filter_closed:
+            state = "open"
+        elif filter_closed and not filter_open:
+            state = "closed"
+
+        cmd = [
+            "gh",
+            "pr",
+            "list",
+            "--limit",
+            str(limit),
+            "--state",
+            state,
+            "--json",
+            ",".join(fields),
+        ]
+
+        if repo:
+            cmd += ["--repo", repo]
+
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True,
+        )
+
+        prs = json.loads(result.stdout.strip() or "[]")
+
+        # Draft filter
+        if filter_draft:
+            prs = [pr for pr in prs if pr.get("isDraft", False)]
+
+        # Review-decision filters (depends on GitHub’s reviewDecision values)
+        if filter_need_review:
+            prs = [
+                pr
+                for pr in prs
+                if pr.get("reviewDecision") in (None, "REVIEW_REQUIRED")
+            ]
+
+        if filter_require_changes:
+            prs = [
+                pr
+                for pr in prs
+                if pr.get(
+                    "reviewDecision",
+                )
+                == "CHANGES_REQUESTED"
+            ]
+
+        if exclude and repo:
+            if _match_any(repo, exclude):
+                prs = []
+
+        console.print(
+            f"[bold green]{
+                get_icon('success')
+            } Found {len(prs)} pull requests.[/]"
+        )
+        return prs
+
+    except subprocess.CalledProcessError as e:
+        console.print(
+            f"[bold red]{
+                get_icon('error')
+            } Error fetching pull requests from GitHub:[/]"
+        )
+        console.print(Panel(str(e), title="Error Details", border_style="red"))
+        return []
+
+    except json.JSONDecodeError as e:
+        console.print(
+            f"[bold red]{get_icon('error')} Error parsing GitHub response:[/]"
+        )
+        console.print(Panel(str(e), title="JSON Error", border_style="red"))
+        return []
+
+
+def get_prs(
+    slug: str,
+    limit: int = 50,
+    state: str = "open",  # open|closed|merged|all
+    draft: str = "all",  # all|only|exclude
+    need_review: bool = False,
+    require_changes: bool = False,
+) -> list[dict]:
+    fields = [
+        "number",
+        "title",
+        "state",
+        "isDraft",
+        "url",
+        "author",
+        "createdAt",
+        "updatedAt",
+        "reviewDecision",
+        "baseRefName",
+        "headRefName",
+    ]
+
+    cmd = [
+        "gh",
+        "pr",
+        "list",
+        "--repo",
+        slug,
+        "--limit",
+        str(limit),
+        "--state",
+        state,
+        "--json",
+        ",".join(fields),
+    ]
+
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=True,
+    )
+
+    prs = json.loads(result.stdout.strip() or "[]")
+
+    if draft == "only":
+        prs = [pr for pr in prs if pr.get("isDraft", False)]
+    elif draft == "exclude":
+        prs = [pr for pr in prs if not pr.get("isDraft", False)]
+
+    if need_review:
+        prs = [
+            pr
+            for pr in prs
+            if pr.get(
+                "reviewDecision",
+            )
+            in (None, "REVIEW_REQUIRED")
+        ]
+
+    if require_changes:
+        prs = [
+            pr
+            for pr in prs
+            if pr.get(
+                "reviewDecision",
+            )
+            == "CHANGES_REQUESTED"
+        ]
+
+    return prs
