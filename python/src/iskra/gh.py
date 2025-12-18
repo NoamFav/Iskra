@@ -216,9 +216,8 @@ def main(argv: list[str] | None = None) -> int:
 
     subparsers.add_parser("info", help="Show GitHub info for current repo")
     subparsers.add_parser("open", help="Open GitHub repo page in browser")
-    # later: issues, prs, status, etc.
 
-    args = parser.parse_args(argv)
+    # later: issues, prs, status, etc.
 
     prs_parser = subparsers.add_parser(
         "prs", help="List pull requests for current repo"
@@ -243,6 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     prs_parser.add_argument(
         "--open", type=int, default=None, help="Open PR number in browser"
     )
+    args = parser.parse_args(argv)
 
     repo_root = get_git_root(".")
     if not repo_root:
