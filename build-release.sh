@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-VERSION="1.7.3"
+VERSION="1.0.0"
 PLATFORMS=("linux-amd64" "linux-arm64" "macos-amd64" "macos-arm64")
 
 mkdir -p releases
