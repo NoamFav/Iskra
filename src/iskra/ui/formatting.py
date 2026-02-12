@@ -1,3 +1,8 @@
+"""
+Formatting utilities. Icons, file icons, headers.
+The cosmetic surgery department.
+"""
+
 from datetime import datetime
 from rich.console import Console
 
@@ -8,10 +13,12 @@ console = Console()
 
 
 def get_icon(name):
+    """Get an emoji icon by name. Falls back to a file icon."""
     return ICONS.get(name, "📄")
 
 
 def get_file_icon(filename):
+    """Pick an icon based on file extension. .py gets python, etc."""
     if "." not in filename:
         return get_icon("file")
 
@@ -22,7 +29,7 @@ def get_file_icon(filename):
 
 
 def print_header(text, title="Git Project Manager"):
-    """Modern minimal header without heavy boxes."""
+    """Print a centered header with timestamp. Fancy."""
     console.print()
 
     # Minimal centered header

@@ -1,9 +1,15 @@
+"""
+Repo scanner. Walks directories looking for .git folders.
+Respects include/exclude patterns and skips heavy dirs like node_modules.
+"""
+
 import os
 import fnmatch
 from .constants import HEAVY_DIRS
 
 
 def _match_any(path_rel: str, patterns) -> bool:
+    """Check if path matches any of the glob patterns."""
 
     if not patterns:
         return False
@@ -33,6 +39,7 @@ def find_git_repos(
     max_depth: int = 4,
     followlinks: bool = True,
 ):
+    """Walk the tree, find .git dirs, filter by patterns. Simple."""
 
     base_dir = os.path.expanduser(base_dir)
 
@@ -80,6 +87,7 @@ def find_git_repos(
 
 
 def find_repo_in_subdirs(base_dir, repo_short_name):
+    """Look for a repo by name in subdirectories. For clone operations."""
 
     direct_path = os.path.join(base_dir, repo_short_name)
     if os.path.isdir(direct_path):

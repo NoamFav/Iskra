@@ -1,8 +1,13 @@
+"""
+Table builders. Config tables, status tables, whatever needs columns.
+"""
+
 from rich.table import Table
 from rich.box import ROUNDED
 
 
 def create_config_table(args, for_pull_repos=False):
+    """Build a config summary table. Shows what settings are active."""
 
     config_table = Table(
         title="Configuration",

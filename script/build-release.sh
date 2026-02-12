@@ -14,7 +14,7 @@ for platform in "${PLATFORMS[@]}"; do
     mkdir -p "$release_dir/lib" "$release_dir/bin"
 
     # Copy Python library
-    cp -r python/src/iskra "$release_dir/lib/"
+    cp -r src/iskra "$release_dir/lib/"
 
     OS="${platform%%-*}"
     ARCH="${platform##*-}"
@@ -27,8 +27,8 @@ for platform in "${PLATFORMS[@]}"; do
     fi
 
     (
-        cd python/gocli
-        GOOS="$GOOS" GOARCH="$ARCH" go build -o "../../$release_dir/bin/ai_commit" ./cmd/iskra
+        cd gocli
+        GOOS="$GOOS" GOARCH="$ARCH" go build -o "../$release_dir/bin/ai_commit" ./cmd/iskra
     )
 
     (

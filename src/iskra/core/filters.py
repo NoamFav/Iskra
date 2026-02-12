@@ -1,3 +1,10 @@
+"""
+Repo filters. For when you have 50 repos but only want the dirty ones.
+
+has_changes, behind_remote, on_branch, all that jazz.
+Basically WHERE clauses for your git repos.
+"""
+
 from __future__ import annotations
 
 import subprocess
@@ -5,7 +12,7 @@ from typing import List, Any
 
 
 def _git(repo_path: str, *args: str) -> subprocess.CompletedProcess[str]:
-    """Run a git command in repo_path and return the CompletedProcess."""
+    """Run git in a repo. Returns the result whether it worked or not."""
     return subprocess.run(
         ["git", *args],
         cwd=repo_path,
@@ -17,18 +24,17 @@ def _git(repo_path: str, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 class RepoFilter:
+    """Filter repos by various git states. Like a bouncer for your repos."""
+
     @staticmethod
     def has_changes(repo_path: str) -> bool:
-        """True if there are any tracked or untracked changes."""
+        """Got uncommitted stuff? Let's find out."""
         proc = _git(repo_path, "status", "--porcelain")
         return bool(proc.stdout.strip())
 
     @staticmethod
     def behind_remote(repo_path: str) -> bool:
-        """
-        True if the current branch is behind its upstream.
-        Uses the short status line: '## main...origin/main [behind 1]'.
-        """
+        """Are we behind? Did someone push while we were slacking?"""
         proc = _git(repo_path, "status", "-sb")
         if not proc.stdout:
             return False
@@ -37,7 +43,7 @@ class RepoFilter:
 
     @staticmethod
     def ahead_remote(repo_path: str) -> bool:
-        """True if the current branch is ahead of its upstream."""
+        """Did we forget to push? Classic."""
         proc = _git(repo_path, "status", "-sb")
         if not proc.stdout:
             return False
@@ -46,45 +52,32 @@ class RepoFilter:
 
     @staticmethod
     def on_branch(repo_path: str, pattern: str) -> bool:
-        """
-        True if current branch name contains `pattern`.
-        You can pass 'main', 'feature/', 'release', etc.
-        """
+        """Check if branch name contains the pattern. Simple string match."""
         proc = _git(repo_path, "rev-parse", "--abbrev-ref", "HEAD")
         branch = proc.stdout.strip()
         return pattern in branch
 
     @staticmethod
     def is_dirty(repo_path: str) -> bool:
-        """Alias for has_changes, kept for semantics."""
+        """Same as has_changes. Two names, one function. Deal with it."""
         return RepoFilter.has_changes(repo_path)
 
     @staticmethod
     def is_clean(repo_path: str) -> bool:
-        """True if working tree is clean (no changes, no untracked)."""
+        """Nothing to commit, nothing to worry about."""
         return not RepoFilter.has_changes(repo_path)
 
     @staticmethod
     def has_conflicts(repo_path: str) -> bool:
-        """True if there are merge conflicts (unmerged entries)."""
+        """Oh no, merge conflicts. Everyone's favorite."""
         proc = _git(repo_path, "diff", "--name-only", "--diff-filter=U")
         return bool(proc.stdout.strip())
 
     @classmethod
     def apply_filters(cls, repos: List[str], **filters: Any) -> List[str]:
         """
-        Apply filters to a list of repo paths.
-
-        Supported keys in **filters:
-          - is_clean: bool
-          - is_dirty: bool
-          - has_changes: bool
-          - ahead_remote: bool
-          - behind_remote: bool
-          - has_conflicts: bool
-          - on_branch: str (pattern to match in branch name)
-
-        Only truthy / non-None filters are applied.
+        Run all the filter checks on repos. Only the worthy survive.
+        Pass is_dirty=True, behind_remote=True, on_branch='main', whatever.
         """
         result: List[str] = []
 

@@ -1,3 +1,8 @@
+"""
+Clone repos from GitHub. Bulk clone all your repos.
+Supports filters for forks, stars, exclude patterns.
+"""
+
 import os
 import argparse
 import argcomplete

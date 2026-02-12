@@ -1,3 +1,10 @@
+"""
+The repo processor. It processes repos. Revolutionary, I know.
+
+Takes a list of repos, loops through them, does git stuff to each one.
+Tracks how many succeeded vs failed so we can feel bad about ourselves.
+"""
+
 import os
 import subprocess
 from rich.console import Console
@@ -9,7 +16,7 @@ from iskra.ui.formatting import get_icon
 
 
 class RepositoryProcessor:
-    """Process repositories with the given configuration."""
+    """The thing that loops through repos and does stuff to them."""
 
     def __init__(
         self,
@@ -17,6 +24,7 @@ class RepositoryProcessor:
         orig_cwd: str,
         console: Console,
     ):
+        """Set up the processor. Nothing fancy."""
         self.config_manager = config_manager
         self.orig_cwd = orig_cwd
         self.console = console
@@ -28,7 +36,7 @@ class RepositoryProcessor:
         tracked_repos: list,
         rich_enabled: bool,
     ) -> tuple[list[RepoResult], ProcessingStats]:
-        """Process all repositories and return results."""
+        """Loop through all repos and do the thing. Returns results and stats."""
         results = []
         stats = ProcessingStats()
 
@@ -55,7 +63,7 @@ class RepositoryProcessor:
         args,
         tracked_repos: list,
     ) -> RepoResult:
-        """Process a single repository."""
+        """Process one repo. Merge configs, check for changes, do git stuff."""
         config = self.config_manager.merge_config(repo_path)
 
         # Skip repos without changes if configured
@@ -73,7 +81,7 @@ class RepositoryProcessor:
             )
 
         # Create repository-specific args
-        repo_args = self._create_repo_args(config, args)
+        repo_args = self._create_repo_args(config, args, repo_path)
 
         # Process the repository
         success = process_repository(
@@ -96,7 +104,7 @@ class RepositoryProcessor:
         )
 
     def _has_changes(self, repo_path: str) -> bool:
-        """Check if repository has uncommitted changes."""
+        """Check if repo is dirty. cd in, git status, cd out."""
         os.chdir(repo_path)
         result = subprocess.run(
             ["git", "status", "--porcelain"],
@@ -106,11 +114,21 @@ class RepositoryProcessor:
         os.chdir(self.orig_cwd)
         return bool(result.stdout.strip())
 
-    def _create_repo_args(self, config, args_orig):
-        """Create repository-specific arguments."""
+    def _create_repo_args(self, config, args_orig, repo_path: str):
+        """
+        Frankenstein together args from global config, CLI flags, and per-repo config.
+        Three sources of truth merged into one beautiful mess.
+        """
+        repo_config = self.config_manager.load_repo_config(repo_path)
 
         class RepoArgs:
-            def __init__(self, cfg, orig):
+            """
+            Oh god what is this monstrosity. All the args smooshed together.
+            Don't ask which one wins. I don't even know anymore.
+            """
+
+            def __init__(self, cfg, orig, per_repo_cfg):
+                # WHY ARE THERE SO MANY OF THESE
                 self.pull = cfg.auto_pull
                 self.handle_gitignore = orig.handle_gitignore
                 self.remove_ds_store = orig.remove_ds_store
@@ -129,11 +147,38 @@ class RepositoryProcessor:
                 self.dirty = orig.dirty
                 self.clean = orig.clean
                 self.conflicts = orig.conflicts
+                # more config options because apparently we needed more
+                self.auto_stash = getattr(cfg, "auto_stash", False)
+                self.check_ssh_keys = getattr(cfg, "check_ssh_keys", True)
+                self.warn_conflicts = getattr(cfg, "warn_conflicts", True)
+                self.protected_branches = getattr(
+                    cfg, "protected_branches", ["main", "master", "production"]
+                )
+                self.require_confirmation_for_protected = getattr(
+                    cfg, "require_confirmation_for_protected", True
+                )
+                self.yes = not cfg.require_confirmation
+                # AI provider config - only god knows how this works now
+                self.ai_provider = getattr(cfg, "ai_provider", "ollama")
+                self.openai_api_key = getattr(cfg, "openai_api_key", None)
+                self.openai_model = getattr(cfg, "openai_model", "gpt-4o-mini")
+                self.claude_api_key = getattr(cfg, "claude_api_key", None)
+                self.claude_model = getattr(cfg, "claude_model", "claude-sonnet-4-20250514")
+                # Hooks from per-repo config - wtf even is this anymore
+                self.pre_commit_command = None
+                self.post_commit_command = None
+                if per_repo_cfg:
+                    self.pre_commit_command = getattr(
+                        per_repo_cfg, "pre_commit_command", None
+                    )
+                    self.post_commit_command = getattr(
+                        per_repo_cfg, "post_commit_command", None
+                    )
 
-        return RepoArgs(config, args_orig)
+        return RepoArgs(config, args_orig, repo_config)
 
-    def _update_tracked_repo(self, repo_path: str):
-        """Update tracked repository's last commit hash."""
+    def _update_tracked_repo(self, repo_path: str) -> None:
+        """Save the HEAD hash so we know what we did last time."""
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
             capture_output=True,

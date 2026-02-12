@@ -5,8 +5,8 @@
 
 <div align="center">
 
-<img src="https://img.shields.io/badge/version-1.7.3-blue.svg?style=for-the-badge" alt="Version">
-<img src="https://img.shields.io/badge/license-Proprietary-red.svg?style=for-the-badge" alt="License">
+<img src="https://img.shields.io/badge/version-1.0.0-blue.svg?style=for-the-badge" alt="Version">
+<img src="https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge" alt="License">
 <img src="https://img.shields.io/badge/python-3.8+-blue.svg?style=for-the-badge&logo=python" alt="Python">
 <img src="https://img.shields.io/badge/go-1.22+-00ADD8.svg?style=for-the-badge&logo=go" alt="Go">
 
@@ -103,13 +103,13 @@ Before installing Iskra, ensure you have:
 ### Quick Install (Recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/NoamFav/Iskra/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/NoamFav/Iskra/main/script/install.sh | bash
 ```
 
 Or download and inspect first:
 
 ```bash
-wget https://raw.githubusercontent.com/NoamFav/Iskra/main/install.sh
+wget https://raw.githubusercontent.com/NoamFav/Iskra/main/script/install.sh
 chmod +x install.sh
 ./install.sh
 ```
@@ -119,7 +119,7 @@ chmod +x install.sh
 ```bash
 # Clone the repository
 git clone https://github.com/NoamFav/Iskra.git
-cd Iskra/python
+cd Iskra
 
 # Install with pip
 pip install -e .
@@ -132,12 +132,13 @@ iskra --help
 
 After installation, you'll have access to:
 
-| Command      | Description                           |
-| ------------ | ------------------------------------- |
-| `iskra`      | Main repository automation tool       |
-| `iskra-init` | Configuration and repository tracking |
-| `ai_commit`  | AI-powered commit message generator   |
-| `pull-repos` | GitHub repository cloning tool        |
+| Command       | Description                           |
+| ------------- | ------------------------------------- |
+| `iskra`       | Main repository automation tool       |
+| `iskra exec`  | Run any command across all repos      |
+| `iskra-init`  | Configuration and repository tracking |
+| `ai_commit`   | AI-powered commit message generator   |
+| `pull-repos`  | GitHub repository cloning tool        |
 
 ---
 
@@ -302,6 +303,32 @@ iskra-init add ~/path/to/my-repo
 iskra-init remove ~/path/to/my-repo
 ```
 
+### Execute Commands: `iskra exec`
+
+Run any git or shell command across all tracked repositories (like gita's "superman mode"):
+
+```bash
+# Git commands
+iskra exec "git log --oneline -5"     # Last 5 commits per repo
+iskra exec "git fetch --all"          # Fetch all remotes
+iskra exec "git stash list"           # List stashes
+iskra exec "git branch -a"            # Show all branches
+
+# Shell commands
+iskra exec "npm install"              # Install dependencies
+iskra exec "make test"                # Run tests
+iskra exec "ls -la"                   # List files
+
+# With filters
+iskra exec --only "api-*" "npm test"  # Only api repos
+iskra exec --exclude "archive-*" "git pull"
+
+# Options
+iskra exec -y "git fetch"             # Skip confirmation
+iskra exec --fail-fast "make build"   # Stop on first error
+iskra exec -q "git status"            # Quiet mode
+```
+
 ### GitHub Tools: `pull-repos`
 
 Clone all your GitHub repositories at once.
@@ -361,20 +388,29 @@ follow_symlinks: true
 # Git operations
 auto_pull: true
 auto_push: true
+auto_stash: false        # Stash local changes before pull, restore after
 default_branch: main
 
-# Commit settings
+# AI commit settings
 use_ai_commit: true
 commit_message_style: conventional
-ai_provider: ollama
+ai_provider: ollama      # Options: ollama, openai, claude
 
-# Safety
+# OpenAI configuration (if ai_provider: openai)
+openai_api_key: null     # Or set OPENAI_API_KEY env var
+openai_model: gpt-4o-mini
+
+# Claude configuration (if ai_provider: claude)
+claude_api_key: null     # Or set ANTHROPIC_API_KEY env var
+claude_model: claude-sonnet-4-20250514
+
+# Safety & confirmation
 require_confirmation: true
 require_confirmation_for_protected: true
 dry_run: false
 
 # UI preferences
-show_diff: false
+show_diff: false         # Show diff before committing
 verbose: false
 use_rich_ui: true
 
@@ -382,11 +418,15 @@ use_rich_ui: true
 exclude_patterns: []
 only_patterns: []
 
-# Protected branches
+# Protected branches (warns before committing)
 protected_branches:
   - main
   - master
   - production
+
+# Safety checks
+check_ssh_keys: true     # Warn if SSH remote but no keys in agent
+warn_conflicts: true     # Check for merge conflicts before operations
 
 # Special handling
 handle_gitignore: false
@@ -422,9 +462,23 @@ exclude_files:
 # Custom commit template
 custom_commit_template: "[{issue}] {message}"
 
-# Pre/post commit commands
-pre_commit_command: "npm test"
-post_commit_command: "npm run deploy"
+# Pre/post commit hooks (shell commands)
+pre_commit_command: "npm test"       # Runs before commit, fails commit if non-zero exit
+post_commit_command: "npm run deploy" # Runs after successful commit
+```
+
+### Environment Variables
+
+You can also configure Iskra using environment variables:
+
+```bash
+# AI Provider API Keys
+export OPENAI_API_KEY="sk-..."
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Ollama configuration
+export OLLAMA_MODEL="mistral"        # Default model for Ollama
+export OLLAMA_URL="http://127.0.0.1:11434"  # Ollama server URL
 ```
 
 ### Configuration Directory Structure
@@ -442,9 +496,17 @@ post_commit_command: "npm run deploy"
 
 ## 🤖 AI Commit Messages
 
-Iskra uses Ollama to generate intelligent, context-aware commit messages.
+Iskra supports multiple AI providers for generating intelligent, context-aware commit messages.
 
-### Setup Ollama
+### Supported Providers
+
+| Provider | Local/Cloud | Setup Required |
+|----------|-------------|----------------|
+| **Ollama** (default) | Local | Install Ollama + model |
+| **OpenAI** | Cloud | API key |
+| **Claude** | Cloud | API key |
+
+### Setup Ollama (Default)
 
 1. **Install Ollama:**
 
@@ -458,9 +520,9 @@ Iskra uses Ollama to generate intelligent, context-aware commit messages.
 2. **Pull a model:**
 
    ```bash
-   ollama pull llama2
-   # or
    ollama pull mistral
+   # or
+   ollama pull llama2
    ```
 
 3. **Start Ollama (if not running):**
@@ -468,15 +530,48 @@ Iskra uses Ollama to generate intelligent, context-aware commit messages.
    ollama serve
    ```
 
+### Setup OpenAI
+
+```yaml
+# In ~/.config/iskra/config.yaml
+ai_provider: openai
+openai_api_key: sk-...  # Or set OPENAI_API_KEY env var
+openai_model: gpt-4o-mini  # Or gpt-4o, gpt-3.5-turbo
+```
+
+### Setup Claude
+
+```yaml
+# In ~/.config/iskra/config.yaml
+ai_provider: claude
+claude_api_key: sk-ant-...  # Or set ANTHROPIC_API_KEY env var
+claude_model: claude-sonnet-4-20250514
+```
+
+### Smart Fallback
+
+If AI generation fails, Iskra automatically falls back to generating smart commit messages based on file analysis:
+
+- Detects file types (tests, docs, config, dependencies)
+- Analyzes operations (added, modified, deleted)
+- Generates appropriate conventional commit messages
+
+**Examples of fallback messages:**
+- `docs: update documentation`
+- `test: add tests`
+- `chore: update dependencies`
+- `feat: add new-feature.py`
+
 ### How It Works
 
 When you run `iskra` with AI commits enabled:
 
 1. 📝 Analyzes your staged changes using `git diff`
 2. 🔍 Detects the type of changes (feat, fix, refactor, etc.)
-3. 🤖 Sends context to Ollama with a specialized prompt
+3. 🤖 Sends context to your configured AI provider
 4. ✨ Receives an intelligent, conventional commit message
 5. 💾 Commits with the generated message
+6. ↩️ Falls back to smart message if AI fails
 
 ### Commit Message Format
 
@@ -502,7 +597,7 @@ Iskra follows the [Conventional Commits](https://www.conventionalcommits.org/) s
 Configure AI behavior via environment variables:
 
 ```bash
-# Use a different model
+# Ollama settings
 export OLLAMA_MODEL=mistral
 
 # Use a different Ollama instance
@@ -591,19 +686,85 @@ iskra --no-ai-commit --commit-message "chore: update dependencies"
 
 ### Safe Operations on Protected Branches
 
-Check before committing to main:
+Iskra automatically warns before committing to protected branches:
 
 ```bash
-# Iskra will warn and ask for confirmation
+# Iskra will warn and require -y flag for protected branches
 iskra
+# Output: ⚠ Protected branch: main
+#         Use -y to confirm operations on protected branches
 
-# Or check status first
-iskra --status-only
+# Confirm you want to commit to protected branch
+iskra -y
+```
+
+### View Changes Before Committing
+
+Use `--show-diff` to review changes:
+
+```bash
+# Show colored diff output before committing
+iskra --show-diff
+```
+
+### Auto-Stash Workflow
+
+Enable auto-stash to safely pull with local changes:
+
+```yaml
+# In config.yaml
+auto_stash: true
+```
+
+```bash
+# With auto_stash enabled:
+# 1. Stashes your local changes
+# 2. Pulls from remote
+# 3. Restores your stashed changes
+iskra --pull
 ```
 
 ---
 
 ## 🔧 Advanced Features
+
+### Pre/Post Commit Hooks
+
+Run commands before and after commits in specific repositories:
+
+```yaml
+# In .iskra.yaml (per-repository)
+pre_commit_command: "npm test"
+post_commit_command: "npm run notify"
+```
+
+- **Pre-commit**: Runs before commit. If it fails (non-zero exit), commit is aborted.
+- **Post-commit**: Runs after successful commit. Failures are warnings only.
+
+### Conflict Detection
+
+Iskra checks for conflicts before operations:
+
+```bash
+# Warns if merge conflicts exist
+# Output: ⚠ Merge conflicts detected in 3 file(s)
+#         • src/file1.py
+#         • src/file2.py
+#         • src/file3.py
+
+# Warns if pull would cause conflicts
+# Output: ⚠ Pull would cause conflicts
+#         Resolve manually or use --no-conflict-check
+```
+
+### SSH Key Detection
+
+Iskra warns if you're using SSH remotes without keys:
+
+```bash
+# Output: ⚠ SSH remote but no keys in agent
+#         Run: ssh-add ~/.ssh/id_rsa
+```
 
 ### Glob Pattern Matching
 
@@ -887,7 +1048,6 @@ git clone https://github.com/YOUR_USERNAME/Iskra.git
 cd Iskra
 
 # Install in development mode
-cd python
 pip install -e ".[dev]"
 
 # Run tests (when available)
@@ -908,17 +1068,19 @@ black src/
 
 ## 📄 License
 
-This project is proprietary and confidential software licensed under a proprietary license agreement. See [LICENSE.md](LICENSE.md) for details.
+This project is licensed under the **MIT License** - see the [LICENSE.md](LICENSE.md) file for details.
 
-**Key points:**
+**You are free to:**
 
-- ❌ Not open source
-- ❌ No redistribution allowed
-- ❌ No modification allowed
-- ✅ Personal use permitted under license
-- ✅ Contact for commercial licensing
+- ✅ Use commercially
+- ✅ Modify and adapt
+- ✅ Distribute copies
+- ✅ Use privately
+- ✅ Sublicense
 
-For licensing inquiries: [contact@nf-software.com](mailto:contact@nf-software.com)
+**Under the condition that:**
+
+- 📝 License and copyright notice must be included
 
 ---
 
@@ -962,9 +1124,20 @@ Need help? We're here for you!
 
 ## 🗺️ Roadmap
 
+### Completed in v1.0
+
+- [x] Multiple AI provider support (Ollama, Claude, OpenAI)
+- [x] Protected branch warnings
+- [x] Dry-run mode
+- [x] Show-diff before commit
+- [x] Pre/post commit hooks
+- [x] Auto-stash for safe pulls
+- [x] Conflict detection
+- [x] SSH key detection
+- [x] Arbitrary command execution (`iskra exec`)
+
 ### Version 2.0 (Coming Soon)
 
-- [ ] Multiple AI provider support (Claude, GPT-4)
 - [ ] Interactive mode for repository selection
 - [ ] Git worktree support
 - [ ] Webhook integrations
@@ -976,9 +1149,8 @@ Need help? We're here for you!
 - [ ] Web dashboard for monitoring
 - [ ] Slack/Discord notifications
 - [ ] Advanced analytics and reporting
-- [ ] Pre-commit hook integration
 
-See [todo.md](todo.md) for the full development roadmap.
+See the [GitHub Issues](https://github.com/NoamFav/Iskra/issues) for the full development roadmap.
 
 ---
 

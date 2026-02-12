@@ -12,7 +12,7 @@ trap 'error_exit "Installation failed at line $LINENO"' ERR
 # Configuration
 #==============================================================================
 
-ISKRA_VERSION="1.7.3"
+ISKRA_VERSION="1.0.0"
 INSTALL_DIR="$HOME/.iskra"
 BIN_DIR="$HOME/.local/bin"
 CONFIG_DIR="$HOME/.config/iskra"

@@ -1,3 +1,8 @@
+"""
+Output formatters. JSON for machines, Rich for humans.
+Dataclasses for the payload because we're civilized.
+"""
+
 from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
@@ -13,6 +18,7 @@ RepoStatusType = Literal["success", "failed", "skipped"]
 
 @dataclass
 class RepoChanges:
+    """Count of changes. Uncommitted, staged, untracked."""
 
     uncommitted: int = 0
     staged: int = 0
@@ -21,6 +27,7 @@ class RepoChanges:
 
 @dataclass
 class RepoRemote:
+    """Remote info. How far ahead/behind, the URL."""
 
     ahead: int = 0
     behind: int = 0
@@ -29,6 +36,7 @@ class RepoRemote:
 
 @dataclass
 class RepoCommit:
+    """Commit info. Hash, message, author, when."""
 
     hash: str = ""
     message: str = ""
@@ -38,6 +46,7 @@ class RepoCommit:
 
 @dataclass
 class RepoResult:
+    """Result of processing a single repo. Success, failed, or skipped."""
 
     path: str
     name: str
@@ -49,12 +58,13 @@ class RepoResult:
     error: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-
+        """Convert to dict for JSON output."""
         return asdict(self)
 
 
 @dataclass
 class OutputPayload:
+    """The whole output. Stats, results, errors, timestamp."""
 
     success: bool
     operation: OperationType
@@ -68,7 +78,7 @@ class OutputPayload:
     )
 
     def to_dict(self) -> Dict[str, Any]:
-
+        """Serialize for JSON. Handles nested dataclasses."""
         data = asdict(self)
         data["timestamp"] = self.timestamp
         data["results"] = [r.to_dict() for r in self.results]
@@ -76,32 +86,32 @@ class OutputPayload:
 
 
 class BaseFormatter(ABC):
+    """Base class for output formatters. JSON or Rich."""
 
     @abstractmethod
     def emit(self, payload: OutputPayload) -> None: ...
 
 
 class JSONFormatter(BaseFormatter):
+    """Spit out JSON. For scripts and automation."""
 
     def __init__(self, console: Optional[Console] = None) -> None:
-
         self._console = console or Console(stderr=False)
 
     def emit(self, payload: OutputPayload) -> None:
-
+        """Print the payload as JSON."""
         raw = json.dumps(payload.to_dict(), ensure_ascii=False)
-
         self._console.print_json(raw)
 
 
 class ConsoleFormatter(BaseFormatter):
+    """Pretty Rich output for humans."""
 
     def __init__(self, console: Optional[Console] = None) -> None:
-
         self.console = console or Console()
 
     def emit(self, payload: OutputPayload) -> None:
-
+        """Print a nice summary with colors and stuff."""
         border = "green" if payload.success else "red"
 
         self.console.rule(f"[bold]{payload.operation.upper()} summary[/bold]")
@@ -123,7 +133,7 @@ def get_formatter(
     quiet: bool = False,
     console: Optional[Console] = None,
 ) -> BaseFormatter:
-
+    """Pick the right formatter. JSON if --json or --quiet, otherwise Rich."""
     if json_mode or quiet:
         return JSONFormatter(console=console)
     return ConsoleFormatter(console=console)

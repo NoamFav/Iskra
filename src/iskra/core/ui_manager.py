@@ -1,22 +1,26 @@
+"""
+UI Manager. Handles all the user-facing output and prompts.
+"""
+
 from rich.console import Console
 from iskra.ui.formatting import print_header
 from rich.prompt import Confirm
 
 
 class UIManager:
-    """Manage user interface output and interaction."""
+    """Print stuff, ask questions, show summaries. The people skills."""
 
     def __init__(self, rich_enabled: bool, console: Console):
         self.rich_enabled = rich_enabled
         self.console = console
 
     def show_header(self):
-        """Display application header."""
+        """Show the fancy header. If we're in Rich mode."""
         if self.rich_enabled:
             print_header("Git Repository Manager")
 
     def show_mode_warnings(self, args):
-        """Display mode warnings and information."""
+        """Warn about dry-run, status-only, whatever mode we're in."""
         if not self.rich_enabled:
             return
 
@@ -36,7 +40,7 @@ class UIManager:
             self.console.print(f"{mode_text}\n")
 
     def show_repository_summary(self, repo_count: int, message: str = ""):
-        """Display repository count summary."""
+        """Tell em how many repos we found."""
         if not self.rich_enabled:
             return
 
@@ -50,7 +54,7 @@ class UIManager:
         )
 
     def confirm_processing(self, repo_count: int) -> bool:
-        """Ask user to confirm processing."""
+        """Are you sure you wanna do this? Y/n"""
         if not self.rich_enabled:
             return True
 
@@ -64,7 +68,7 @@ class UIManager:
         return True
 
     def show_final_summary(self, args, stats, total: int):
-        """Display final processing summary."""
+        """The victory lap. How many did we process?"""
         if not self.rich_enabled:
             return
 
@@ -79,7 +83,7 @@ class UIManager:
             )
 
     def _show_compact_summary(self, stats, total: int):
-        """Show compact summary with clean/dirty breakdown."""
+        """Quick summary. Clean vs dirty counts."""
         self.console.print("[dim]Summary:[/]")
         self.console.print(
             f"  [green]✓[/] [dim]clean:[/] [green]{
@@ -95,7 +99,7 @@ class UIManager:
         self.console.print()
 
     def _show_standard_summary(self, success_count: int, total: int):
-        """Show standard success summary."""
+        """Standard summary. X/Y processed, green if all good."""
         all_success = success_count == total
         status = "✓" if all_success else "◆"
         color = "green" if all_success else "yellow"

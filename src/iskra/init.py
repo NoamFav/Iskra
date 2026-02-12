@@ -1,3 +1,8 @@
+"""
+The init command. Scan for repos, track them, manage the list.
+Also handles add/remove for individual repos.
+"""
+
 import os
 import subprocess
 import argparse
@@ -27,7 +32,7 @@ console = Console()
 
 
 def get_git_root(path: str) -> str | None:
-    """Return the git repo root for `path`, or None if not a git repo."""
+    """Find the git root for a path. None if not in a repo."""
     result = subprocess.run(
         ["git", "-C", path, "rev-parse", "--show-toplevel"],
         capture_output=True,

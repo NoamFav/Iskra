@@ -1,3 +1,7 @@
+"""
+Repository selector. Picks which repos to process based on mode and filters.
+"""
+
 from iskra.config import ConfigManager
 import subprocess
 import os
@@ -6,7 +10,7 @@ from iskra.core.repo_scanner import find_git_repos
 
 
 class RepositorySelector:
-    """Select and filter repositories based on configuration."""
+    """Figure out which repos we're working with today."""
 
     def __init__(self, config_manager: ConfigManager, config, base_dir: str):
         self.config_manager = config_manager
@@ -16,7 +20,7 @@ class RepositorySelector:
     def get_repositories(
         self, scan: bool, pulse: bool
     ) -> tuple[list[tuple[str, str]], list]:
-        """Get repositories to process based on mode."""
+        """Get repos based on mode. Pulse = current, scan = find em, else tracked."""
         if pulse:
             return self._get_pulse_repo(), []
 
@@ -28,7 +32,7 @@ class RepositorySelector:
         return self._get_tracked_repositories(tracked_repos), tracked_repos
 
     def _get_pulse_repo(self) -> list[tuple[str, str]]:
-        """Get the current repository for pulse mode."""
+        """Just the repo we're standing in. Pulse mode."""
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
             capture_output=True,
@@ -41,7 +45,7 @@ class RepositorySelector:
         return [(repo_root, os.path.basename(repo_root))]
 
     def _scan_repositories(self) -> list[tuple[str, str]]:
-        """Scan for repositories in the base directory."""
+        """Walk the base dir and find all the repos."""
         git_repo_paths = find_git_repos(
             base_dir=self.base_dir,
             only=self.config.only_patterns,
@@ -69,7 +73,7 @@ class RepositorySelector:
             str,
         ]
     ]:
-        """Get tracked repositories with filtering applied."""
+        """Get tracked repos, filtered by include/exclude patterns."""
         git_repos = []
 
         for repo_info in tracked_repos:
@@ -79,7 +83,7 @@ class RepositorySelector:
         return git_repos
 
     def _should_include_repo(self, repo_name: str) -> bool:
-        """Check if repository passes include/exclude filters."""
+        """Does this repo pass the only/exclude filters?"""
         from fnmatch import fnmatch
 
         if self.config.only_patterns:
