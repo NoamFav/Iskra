@@ -12,9 +12,12 @@ import (
 
 func firstLine(s string) string {
 	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return strings.TrimSpace(s[:i])
+		s = s[:i]
 	}
-	return strings.TrimSpace(s)
+	s = strings.TrimSpace(s)
+	// strip quotes and backticks that models love to add
+	s = strings.Trim(s, "\"'`")
+	return s
 }
 
 func main() {
