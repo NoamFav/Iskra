@@ -61,6 +61,14 @@ class CommandRouter:
             from iskra import exec as exec_cli
 
             sys.exit(exec_cli.main(argv[1:]))
+        if cmd == "log":
+            from iskra import log as log_cli
+
+            sys.exit(log_cli.main(argv[1:]))
+        if cmd == "info":
+            from iskra import info as info_cli
+
+            sys.exit(info_cli.main(argv[1:]))
         # Handle commit command (default behavior)
         if cmd == "commit":
             return argv[1:]

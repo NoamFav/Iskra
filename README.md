@@ -136,6 +136,8 @@ After installation, you'll have access to:
 | ------------- | ------------------------------------- |
 | `iskra`       | Main repository automation tool       |
 | `iskra exec`  | Run any command across all repos      |
+| `iskra log`   | Git history viewer with rich formatting |
+| `iskra info`  | Repository stats display (like onefetch) |
 | `iskra-init`  | Configuration and repository tracking |
 | `ai_commit`   | AI-powered commit message generator   |
 | `pull-repos`  | GitHub repository cloning tool        |
@@ -328,6 +330,59 @@ iskra exec -y "git fetch"             # Skip confirmation
 iskra exec --fail-fast "make build"   # Stop on first error
 iskra exec -q "git status"            # Quiet mode
 ```
+
+### Git History: `iskra log`
+
+View git history for the current repository with beautiful formatting.
+
+```bash
+# Show last 20 commits (default)
+iskra log
+
+# Show more commits
+iskra log -n 50
+
+# Compact one-line format
+iskra log --oneline
+
+# Filter by author
+iskra log --author "noam"
+
+# Filter by date
+iskra log --since "2 weeks ago"
+iskra log --until "2024-01-01"
+
+# Search commit messages
+iskra log --grep "fix"
+
+# Show ASCII branch graph
+iskra log --graph
+
+# Show commits from all branches
+iskra log --all
+
+# Combine options
+iskra log -n 30 --author "noam" --oneline
+```
+
+### Repository Info: `iskra info`
+
+Display repository statistics with ASCII art (inspired by [onefetch](https://github.com/o2sh/onefetch)).
+
+```bash
+# Show current repo info
+iskra info
+```
+
+**Displays:**
+- Language breakdown with percentages
+- Lines of code count
+- Total commits and contributors
+- Repository size
+- Current branch and remote URL
+- ASCII art for the dominant language
+
+**Custom Icon:** Place an `icon.png` in your repository root for custom ASCII art display instead of the language icon.
 
 ### GitHub Tools: `pull-repos`
 
@@ -1090,6 +1145,7 @@ Iskra wouldn't be possible without these amazing projects:
 
 - **[Rich](https://github.com/Textualize/rich)** - Beautiful terminal formatting
 - **[Ollama](https://ollama.ai)** - Local AI model runtime
+- **[onefetch](https://github.com/o2sh/onefetch)** - ASCII art for programming languages
 - **[GitHub CLI](https://cli.github.com/)** - GitHub integration
 - **[Click](https://click.palletsprojects.com/)** - CLI framework (via argparse)
 - **[PyYAML](https://pyyaml.org/)** - YAML configuration parsing
