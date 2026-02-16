@@ -1,0 +1,375 @@
+.TH ISKRA 1 "February 2026" "iskra 1.0.0" "User Commands"
+.SH NAME
+iskra \- intelligent multi-repository Git automation with AI-powered commits
+.SH SYNOPSIS
+.B iskra
+[\fIOPTIONS\fR]
+.br
+.B iskra exec
+[\fIOPTIONS\fR] \fICOMMAND\fR
+.br
+.B iskra init
+[\fISUBCOMMAND\fR] [\fIOPTIONS\fR]
+.br
+.B iskra log
+[\fIOPTIONS\fR]
+.br
+.B iskra info
+.br
+.B iskra clone
+[\fIOPTIONS\fR]
+.br
+.B iskra gh
+[\fISUBCOMMAND\fR] [\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B iskra
+is a powerful command-line tool for managing multiple Git repositories with
+unprecedented efficiency. It combines intelligent repository tracking,
+AI-powered commit message generation, and streamlined Git operations into
+a single interface.
+.PP
+Key features include:
+.IP \(bu 2
+Batch operations across 100+ repositories
+.IP \(bu 2
+AI-powered conventional commit messages via Ollama, OpenAI, or Claude
+.IP \(bu 2
+Beautiful Rich terminal UI with progress indicators
+.IP \(bu 2
+Flexible filtering with glob patterns
+.IP \(bu 2
+Per-repository configuration overrides
+.SH COMMANDS
+.SS Main Commands
+.TP
+.B iskra
+Process all tracked repositories: stage, commit with AI message, push.
+.TP
+.B iskra exec \fICOMMAND\fR
+Run any shell command across all tracked repositories.
+.TP
+.B iskra init
+Initialize configuration and scan for repositories.
+.TP
+.B iskra log
+View git history for current repository with rich formatting.
+.TP
+.B iskra info
+Display repository statistics with ASCII art (like onefetch).
+.TP
+.B iskra clone
+Clone GitHub repositories in bulk.
+.TP
+.B iskra gh
+GitHub-related operations (PRs, issues).
+.SS Command Shortcuts
+.TP
+.B iskra status
+Show status only (alias for --status-only)
+.TP
+.B iskra scan
+Scan directory and show status (alias for --scan --status-only)
+.TP
+.B iskra pulse
+Process current repository only (alias for --pulse)
+.TP
+.B iskra sync
+Pull current repository (alias for --pull --pull-only --pulse -y)
+.TP
+.B iskra sync-all
+Pull all tracked repositories (alias for --pull --pull-only -y)
+.SH OPTIONS
+.SS Operation Modes
+.TP
+.BR \-\-scan
+Scan directory for repos instead of using tracked repos.
+.TP
+.BR \-\-pulse
+Process current repository only.
+.TP
+.BR \-\-status-only
+Show status without committing.
+.TP
+.BR \-\-pull-only
+Only pull, don't commit or push.
+.SS Git Operations
+.TP
+.BR \-\-pull
+Pull before commit.
+.TP
+.BR \-\-no-push
+Don't push after commit.
+.TP
+.BR \-\-no-ai-commit
+Use manual commit message instead of AI.
+.TP
+.BR \-\-commit-message =\fIMSG\fR
+Set custom commit message.
+.SS Filtering
+.TP
+.BR \-\-only " \fIPATTERN\fR..."
+Only include repos matching pattern (glob).
+.TP
+.BR \-\-exclude " \fIPATTERN\fR..."
+Exclude repos matching pattern (glob).
+.TP
+.BR \-c ", " \-\-has-changes
+Only repos with uncommitted changes.
+.TP
+.BR \-\-dirty
+Only repos with untracked/modified files.
+.TP
+.BR \-\-clean
+Only repos with no changes.
+.TP
+.BR \-\-behind-remote
+Only repos behind remote (needs pull).
+.TP
+.BR \-\-ahead-remote
+Only repos ahead of remote (needs push).
+.TP
+.BR \-\-on-branch " \fIBRANCH\fR..."
+Only repos on specific branch.
+.TP
+.BR \-\-conflicts
+Only repos with merge conflicts.
+.SS Safety & Preview
+.TP
+.BR \-\-dry-run
+Show what would be done without making changes.
+.TP
+.BR \-\-show-diff
+Show diff before committing.
+.TP
+.BR \-y ", " \-\-yes
+Skip all confirmation prompts.
+.SS Output
+.TP
+.BR \-\-json
+Output machine-readable JSON.
+.TP
+.BR \-q ", " \-\-quiet
+Suppress Rich UI, minimal output.
+.TP
+.BR \-\-compact
+Compact display for clean repositories.
+.SS Configuration
+.TP
+.BR \-\-config =\fIPATH\fR
+Use custom config file.
+.TP
+.BR \-\-dir =\fIPATH\fR
+Override base directory.
+.SH ISKRA EXEC
+Run any command across all tracked repositories.
+.SS Usage
+.B iskra exec
+[\fIOPTIONS\fR] "\fICOMMAND\fR"
+.SS Options
+.TP
+.BR \-p ", " \-\-parallel =\fIN\fR
+Run N commands in parallel (default: 1).
+.TP
+.BR \-\-fail-fast
+Stop on first error.
+.TP
+.BR \-y ", " \-\-yes
+Skip confirmation.
+.TP
+.BR \-q ", " \-\-quiet
+Only show command output.
+.SS Examples
+.PP
+Run git log on all repos:
+.RS
+.B iskra exec "git log --oneline -5"
+.RE
+.PP
+Parallel npm install:
+.RS
+.B iskra exec -p 5 "npm install"
+.RE
+.PP
+Fetch all with filter:
+.RS
+.B iskra exec --only "api-*" "git fetch --all"
+.RE
+.SH ISKRA INIT
+Initialize configuration and manage tracked repositories.
+.SS Subcommands
+.TP
+.B init
+Scan directory and track repos interactively.
+.TP
+.B list, ls
+List all tracked repositories.
+.TP
+.B add \fIPATH\fR
+Add repository to tracking.
+.TP
+.B remove, rm \fIPATH\fR
+Remove repository from tracking.
+.SS Init Options
+.TP
+.BR \-\-base-dir =\fIPATH\fR
+Directory to scan for repositories.
+.TP
+.BR \-y ", " \-\-yes
+Accept all defaults.
+.TP
+.BR \-\-show-repos
+Show repos after initialization.
+.SS List Options
+.TP
+.BR \-\-all
+Include inactive repositories.
+.SH ISKRA LOG
+View git history for current repository with rich formatting.
+.SS Options
+.TP
+.BR \-n ", " \-\-count =\fIN\fR
+Number of commits to show (default: 20).
+.TP
+.BR \-\-oneline
+Compact one-line format.
+.TP
+.BR \-\-author =\fINAME\fR
+Filter by author.
+.TP
+.BR \-\-since =\fIDATE\fR
+Show commits after date.
+.TP
+.BR \-\-until =\fIDATE\fR
+Show commits before date.
+.TP
+.BR \-\-grep =\fIPATTERN\fR
+Search commit messages.
+.TP
+.BR \-\-graph
+Show ASCII branch graph.
+.TP
+.BR \-\-all
+Show commits from all branches.
+.SH ISKRA INFO
+Display repository statistics with ASCII art for the dominant language.
+Shows language breakdown, lines of code, commits, contributors, and repo size.
+.PP
+Place an
+.I icon.png
+in the repository root for custom ASCII art.
+.SH CONFIGURATION
+.SS Global Configuration
+Located at
+.IR ~/.config/iskra/config.yaml :
+.PP
+.RS
+.nf
+base_dir: ~/Projects
+auto_pull: true
+auto_push: true
+use_ai_commit: true
+ai_provider: ollama  # or openai, claude
+require_confirmation: true
+.fi
+.RE
+.SS Per-Repository Configuration
+Create
+.I .iskra.yaml
+in repository root:
+.PP
+.RS
+.nf
+use_ai_commit: false
+auto_push: false
+pre_commit_command: "npm test"
+.fi
+.RE
+.SS Environment Variables
+.TP
+.B OLLAMA_MODEL
+Ollama model to use (default: mistral)
+.TP
+.B OLLAMA_URL
+Ollama API URL (default: http://127.0.0.1:11434)
+.TP
+.B OPENAI_API_KEY
+OpenAI API key (if ai_provider: openai)
+.TP
+.B ANTHROPIC_API_KEY
+Anthropic API key (if ai_provider: claude)
+.SH FILES
+.TP
+.I ~/.config/iskra/config.yaml
+Global configuration
+.TP
+.I ~/.config/iskra/repos.json
+Tracked repositories database
+.TP
+.I ~/.config/iskra/logs/
+Operation logs
+.TP
+.I .iskra.yaml
+Per-repository configuration
+.SH EXIT STATUS
+.TP
+.B 0
+Success
+.TP
+.B 1
+Error (Git operation failed, invalid command, etc.)
+.SH EXAMPLES
+.PP
+Process all tracked repositories:
+.RS
+.B iskra
+.RE
+.PP
+Preview without making changes:
+.RS
+.B iskra --dry-run
+.RE
+.PP
+Pull all repos:
+.RS
+.B iskra sync-all
+.RE
+.PP
+Filter by pattern:
+.RS
+.B iskra --only "frontend-*" --show-diff
+.RE
+.PP
+Run tests across all repos:
+.RS
+.B iskra exec "npm test"
+.RE
+.PP
+Initialize and scan:
+.RS
+.B iskra init init --base-dir ~/Projects
+.RE
+.SH DEPENDENCIES
+.SS Required
+.IP \(bu 2
+Python 3.8+
+.IP \(bu 2
+Git
+.SS Optional
+.IP \(bu 2
+Ollama (for AI commit messages)
+.IP \(bu 2
+GitHub CLI (for clone and gh commands)
+.SH BUGS
+Report bugs at: https://github.com/NoamFav/Iskra/issues
+.SH AUTHOR
+Written by Noam Favier.
+.SH COPYRIGHT
+Copyright \(co 2025-2026 Noam Favier. MIT License.
+.SH SEE ALSO
+.BR git (1),
+.BR gh (1),
+.BR ollama (1)
+.PP
+Full documentation: https://github.com/NoamFav/Iskra
+.SH ACKNOWLEDGMENTS
+ASCII art for programming languages from onefetch (https://github.com/o2sh/onefetch).

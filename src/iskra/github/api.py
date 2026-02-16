@@ -1,3 +1,8 @@
+"""
+GitHub API wrappers. Uses gh CLI under the hood.
+Now with caching so we don't hammer the API like barbarians.
+"""
+
 import json
 import subprocess
 import fnmatch
@@ -5,6 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from ..ui.formatting import get_icon
+from .cache import cached
 
 
 console = Console()
@@ -22,6 +28,7 @@ def _match_any(repo_name: str, patterns) -> bool:
     return False
 
 
+@cached("github_repos")
 def get_github_repos(
     limit=1000,
     filter_forks=False,
@@ -120,6 +127,7 @@ def get_github_repos(
         return []
 
 
+@cached("github_prs")
 def get_pr(
     limit=1000,
     filter_closed=True,
@@ -233,6 +241,7 @@ def get_pr(
         return []
 
 
+@cached("github_prs_slug")
 def get_prs(
     slug: str,
     limit: int = 50,
