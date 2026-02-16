@@ -136,6 +136,7 @@ def show_help():
             ("--json", "Output JSON instead of Rich UI"),
             ("-q, --quiet", "Minimal output"),
             ("--compact", "Compact display for clean repos"),
+            ("--minimal", "Disable colors and fancy icons"),
         ],
     )
 
@@ -309,6 +310,7 @@ def show_help_compact():
     console.print("  [yellow]-y, --yes[/]          Skip confirmations")
     console.print("  [yellow]--show-diff[/]        Show diff before commit")
     console.print("  [yellow]-q, --quiet[/]        Minimal output")
+    console.print("  [yellow]--minimal[/]          No colors/icons")
     console.print()
 
     console.print("[bold]Exec Options:[/]")

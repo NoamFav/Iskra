@@ -22,7 +22,7 @@ from iskra.core.repository_processor import RepositoryProcessor
 from iskra.core.repository_selector import RepositorySelector
 from iskra.core.ui_manager import UIManager
 from iskra.core.command_router import CommandRouter
-from iskra.ui.formatting import get_icon, style
+from iskra.ui.formatting import get_icon, style, set_minimal_mode
 from iskra.output.formatter import get_formatter, OutputPayload
 from iskra.core.filters import RepoFilter
 
@@ -143,6 +143,9 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", help="Output machine-readable JSON"
     )
     parser.add_argument("-q", "--quiet", action="store_true", help="Suppress Rich UI")
+    parser.add_argument(
+        "--minimal", action="store_true", help="Disable colors and fancy icons"
+    )
 
     return parser
 
@@ -208,6 +211,10 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     parser = create_argument_parser()
     args = parser.parse_args(argv)
+
+    # enable minimal mode before any UI calls
+    if args.minimal:
+        set_minimal_mode(True)
 
     # figure out output mode
     json_mode = bool(getattr(args, "json", False))
