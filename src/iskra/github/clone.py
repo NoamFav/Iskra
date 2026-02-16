@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from ..ui.formatting import get_icon
+from ..ui.formatting import get_icon, style, get_color
 from ..core.repo_scanner import find_repo_in_subdirs
 
 
@@ -56,11 +56,11 @@ def process_repository(repo_info, base_dir, total, current):
     star_text = f" {get_icon('star')} {stars}" if stars > 0 else ""
 
     repo_panel = Panel(
-        f"[dim cyan]{description}[/]\n[blue]{url}[/]",
-        title=f"[bold]{repo_icon} {repo_name}{fork_text}{star_text}[/]",
+        f"{style(description, 'dim')}\n{style(url, 'info')}",
+        title=style(f"{repo_icon} {repo_name}{fork_text}{star_text}", "highlight"),
         title_align="left",
-        border_style="blue" if not is_private else "magenta",
-        subtitle=f"[dim]Repository {current} of {total}[/]",
+        border_style=get_color("info") if not is_private else get_color("secondary"),
+        subtitle=style(f"Repository {current} of {total}", "dim"),
         subtitle_align="right",
         padding=(1, 2),
     )
@@ -75,15 +75,14 @@ def process_repository(repo_info, base_dir, total, current):
 
         rel_path = os.path.relpath(existing_repo_path, base_dir)
         console.print(
-            f"[yellow]{get_icon('warning')} Repository already exists at: "
-            f"[bold]{rel_path}[/], skipping..."
+            style(f"{get_icon('warning')} Repository already exists at: {rel_path}, skipping...", "warning")
         )
     else:
 
         try:
 
             with console.status(
-                f"[bold blue]Cloning {repo_name}...[/]", spinner="dots"
+                style(f"Cloning {repo_name}...", "primary"), spinner="dots"
             ):
                 subprocess.run(
                     ["gh", "repo", "clone", repo_name],
@@ -98,8 +97,7 @@ def process_repository(repo_info, base_dir, total, current):
             elapsed = end_time - start_time
 
             console.print(
-                f"[bold green]{get_icon('success')} Successfully cloned in "
-                f"{elapsed:.2f} seconds."
+                style(f"{get_icon('success')} Successfully cloned in {elapsed:.2f} seconds.", "success")
             )
 
             repo_dir = os.path.join(base_dir, repo_short_name)
@@ -118,8 +116,8 @@ def process_repository(repo_info, base_dir, total, current):
                     box=None,
                     pad_edge=False,
                 )
-                stats_table.add_column("", style="cyan")
-                stats_table.add_column("", style="white")
+                stats_table.add_column("", style=get_color("primary"))
+                stats_table.add_column("", style=get_color("highlight"))
 
                 stats_table.add_row(
                     f"{get_icon('folder')} Directories:", f"{dir_count}"
@@ -139,15 +137,15 @@ def process_repository(repo_info, base_dir, total, current):
 
             ok = False
             console.print(
-                f"[bold red]{get_icon('error')} Error cloning repository:",
+                style(f"{get_icon('error')} Error cloning repository:", "error"),
             )
 
             console.print(
-                Panel(e.stderr, title="Error Details", border_style="red"),
+                Panel(e.stderr, title="Error Details", border_style=get_color("error")),
             )
 
     separator_count = shutil.get_terminal_size().columns // 2
-    console.print(f"[dim cyan]{get_icon('separator') * separator_count}[/]")
+    console.print(style(get_icon('separator') * separator_count, "dim"))
     console.print()
 
     return ok

@@ -11,7 +11,7 @@ from rich.table import Table
 from rich.panel import Panel
 from .github import get_prs
 
-from iskra.ui.formatting import get_icon
+from iskra.ui.formatting import get_icon, style, get_color
 
 console = Console()
 
@@ -60,7 +60,7 @@ def parse_github_slug(remote_url: str) -> str | None:
 def cmd_info(repo_path: str) -> int:
     remote = get_remote_url(repo_path)
     if not remote:
-        console.print("[red]No 'origin' remote found[/]")
+        console.print(style("No 'origin' remote found", "error"))
         return 1
 
     slug = parse_github_slug(remote)
@@ -71,12 +71,12 @@ def cmd_info(repo_path: str) -> int:
         box=None,
         padding=(0, 2),
     )
-    table.add_column("Field", style="cyan")
-    table.add_column("Value", style="white")
+    table.add_column("Field", style=get_color("primary"))
+    table.add_column("Value", style=get_color("highlight"))
 
     table.add_row("Repo path", repo_path)
     table.add_row("Remote", remote)
-    table.add_row("GitHub slug", slug or "[dim]not a GitHub repo[/]")
+    table.add_row("GitHub slug", slug or style("not a GitHub repo", "dim"))
 
     console.print(table)
     return 0
@@ -85,16 +85,16 @@ def cmd_info(repo_path: str) -> int:
 def cmd_open(repo_path: str) -> int:
     remote = get_remote_url(repo_path)
     if not remote:
-        console.print("[red]No 'origin' remote found[/]")
+        console.print(style("No 'origin' remote found", "error"))
         return 1
 
     slug = parse_github_slug(remote)
     if not slug:
-        console.print("[red]Remote is not a GitHub URL[/]")
+        console.print(style("Remote is not a GitHub URL", "error"))
         return 1
 
     url = f"https://github.com/{slug}"
-    console.print(f"{get_icon('link')} Opening [bold]{url}[/]...")
+    console.print(f"{get_icon('link')} Opening {style(url, 'highlight')}...")
     webbrowser.open(url)
     return 0
 
@@ -110,19 +110,17 @@ def cmd_prs(
 ) -> int:
     remote = get_remote_url(repo_path)
     if not remote:
-        console.print("[red]No 'origin' remote found[/]")
+        console.print(style("No 'origin' remote found", "error"))
         return 1
 
     slug = parse_github_slug(remote)
     if not slug:
-        console.print("[red]Remote is not a GitHub URL[/]")
+        console.print(style("Remote is not a GitHub URL", "error"))
         return 1
 
     try:
         console.print(
-            f"[bold blue]{
-                get_icon('github')
-            } Fetching PRs for {slug}...[/]"
+            style(f"{get_icon('github')} Fetching PRs for {slug}...", "primary")
         )
         prs = get_prs(
             slug=slug,
@@ -134,21 +132,21 @@ def cmd_prs(
         )
     except subprocess.CalledProcessError as e:
         console.print(
-            f"[bold red]{get_icon('error')} Error fetching PRs from GitHub:[/]"
+            style(f"{get_icon('error')} Error fetching PRs from GitHub:", "error")
         )
         console.print(
             Panel(
                 e.stderr or str(e),
                 title="Error Details",
-                border_style="red",
+                border_style=get_color("error"),
             )
         )
         return 1
     except json.JSONDecodeError as e:
         console.print(
-            f"[bold red]{get_icon('error')} Error parsing GitHub response:[/]"
+            style(f"{get_icon('error')} Error parsing GitHub response:", "error")
         )
-        console.print(Panel(str(e), title="JSON Error", border_style="red"))
+        console.print(Panel(str(e), title="JSON Error", border_style=get_color("error")))
         return 1
 
     if open_number is not None:
@@ -165,16 +163,14 @@ def cmd_prs(
         )
         if not match:
             console.print(
-                f"[red]PR #{
-                    open_number
-                } not found in listed results[/]"
+                style(f"PR #{open_number} not found in listed results", "error")
             )
             return 1
         url = match.get("url")
         if not url:
-            console.print("[red]PR has no URL[/]")
+            console.print(style("PR has no URL", "error"))
             return 1
-        console.print(f"{get_icon('link')} Opening [bold]{url}[/]...")
+        console.print(f"{get_icon('link')} Opening {style(url, 'highlight')}...")
         webbrowser.open(url)
         return 0
 
@@ -184,11 +180,11 @@ def cmd_prs(
         box=None,
         padding=(0, 1),
     )
-    table.add_column("#", style="cyan", justify="right")
-    table.add_column("Title", style="white")
-    table.add_column("State", style="magenta")
-    table.add_column("Draft", style="dim")
-    table.add_column("Review", style="yellow")
+    table.add_column("#", style=get_color("primary"), justify="right")
+    table.add_column("Title", style=get_color("highlight"))
+    table.add_column("State", style=get_color("info"))
+    table.add_column("Draft", style=get_color("dim"))
+    table.add_column("Review", style=get_color("secondary"))
 
     for pr in prs:
         table.add_row(
@@ -246,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
 
     repo_root = get_git_root(".")
     if not repo_root:
-        console.print("[red]iskra gh: not inside a git repository[/]")
+        console.print(style("iskra gh: not inside a git repository", "error"))
         return 1
 
     if args.command == "info":
@@ -264,5 +260,5 @@ def main(argv: list[str] | None = None) -> int:
             open_number=args.open,
         )
 
-    console.print("[red]Unknown gh command[/]")
+    console.print(style("Unknown gh command", "error"))
     return 1

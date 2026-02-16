@@ -9,7 +9,7 @@ import fnmatch
 from rich.console import Console
 from rich.panel import Panel
 
-from ..ui.formatting import get_icon
+from ..ui.formatting import get_icon, style, get_color
 from .cache import cached
 
 
@@ -51,9 +51,7 @@ def get_github_repos(
         fields_arg = ",".join(fields)
 
         console.print(
-            f"[bold blue]{
-                get_icon('github')
-            } Fetching repositories from GitHub...[/]"
+            f"{style(get_icon('github') + ' Fetching repositories from GitHub...', 'info')}"
         )
 
         command = [
@@ -101,29 +99,23 @@ def get_github_repos(
             ]
 
         console.print(
-            f"[bold green]{
-                get_icon('success')
-            } Found {len(repos)} repositories."
+            f"{style(get_icon('success') + f' Found {len(repos)} repositories.', 'success')}"
         )
 
         return repos
 
     except subprocess.CalledProcessError as e:
-
         console.print(
-            f"[bold red]{
-                get_icon('error')
-            } Error fetching repositories from GitHub:"
+            f"{style(get_icon('error') + ' Error fetching repositories from GitHub:', 'error')}"
         )
-        console.print(Panel(str(e), title="Error Details", border_style="red"))
+        console.print(Panel(str(e), title="Error Details", border_style=get_color("error") or "red"))
         return []
 
     except json.JSONDecodeError as e:
-
         console.print(
-            f"[bold red]{get_icon('error')} Error parsing GitHub response:",
+            f"{style(get_icon('error') + ' Error parsing GitHub response:', 'error')}"
         )
-        console.print(Panel(str(e), title="JSON Error", border_style="red"))
+        console.print(Panel(str(e), title="JSON Error", border_style=get_color("error") or "red"))
         return []
 
 
@@ -154,9 +146,7 @@ def get_pr(
         ]
 
         console.print(
-            f"[bold blue]{
-                get_icon('github')
-            } Fetching pull requests from GitHub...[/]"
+            f"{style(get_icon('github') + ' Fetching pull requests from GitHub...', 'info')}"
         )
 
         # Decide state: default to closed unless open explicitly requested
@@ -218,26 +208,22 @@ def get_pr(
                 prs = []
 
         console.print(
-            f"[bold green]{
-                get_icon('success')
-            } Found {len(prs)} pull requests.[/]"
+            f"{style(get_icon('success') + f' Found {len(prs)} pull requests.', 'success')}"
         )
         return prs
 
     except subprocess.CalledProcessError as e:
         console.print(
-            f"[bold red]{
-                get_icon('error')
-            } Error fetching pull requests from GitHub:[/]"
+            f"{style(get_icon('error') + ' Error fetching pull requests from GitHub:', 'error')}"
         )
-        console.print(Panel(str(e), title="Error Details", border_style="red"))
+        console.print(Panel(str(e), title="Error Details", border_style=get_color("error") or "red"))
         return []
 
     except json.JSONDecodeError as e:
         console.print(
-            f"[bold red]{get_icon('error')} Error parsing GitHub response:[/]"
+            f"{style(get_icon('error') + ' Error parsing GitHub response:', 'error')}"
         )
-        console.print(Panel(str(e), title="JSON Error", border_style="red"))
+        console.print(Panel(str(e), title="JSON Error", border_style=get_color("error") or "red"))
         return []
 
 

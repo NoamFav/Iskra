@@ -22,7 +22,7 @@ from iskra.core.repository_processor import RepositoryProcessor
 from iskra.core.repository_selector import RepositorySelector
 from iskra.core.ui_manager import UIManager
 from iskra.core.command_router import CommandRouter
-from iskra.ui.formatting import get_icon
+from iskra.ui.formatting import get_icon, style
 from iskra.output.formatter import get_formatter, OutputPayload
 from iskra.core.filters import RepoFilter
 
@@ -59,7 +59,7 @@ def build_repo_filters(args) -> Dict[str, Any]:
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
-    """All the flags. So many flags. Why do we need so many flags."""
+    """All the flags. So many flags. Why do we need so many flags. Could be the Olympics"""
     parser = argparse.ArgumentParser(
         description="Iskra - "
         + "Intelligent Git automation with configuration management",
@@ -69,9 +69,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
     # where stuff lives
     parser.add_argument("--config", type=str, help="Path to config file")
     parser.add_argument("--profile", type=str, help="Use named profile")
-    parser.add_argument(
-        "--dir", type=str, help="Base directory (overrides config)"
-    )
+    parser.add_argument("--dir", type=str, help="Base directory (overrides config)")
 
     # what to do
     parser.add_argument(
@@ -118,9 +116,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "--dirty", action="store_true", help="Has untracked/modified files"
     )
     parser.add_argument("--clean", action="store_true", help="No changes at all")
-    parser.add_argument(
-        "--conflicts", action="store_true", help="Has merge conflicts"
-    )
+    parser.add_argument("--conflicts", action="store_true", help="Has merge conflicts")
 
     # safety nets for the paranoid (me)
     parser.add_argument(
@@ -146,9 +142,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--json", action="store_true", help="Output machine-readable JSON"
     )
-    parser.add_argument(
-        "-q", "--quiet", action="store_true", help="Suppress Rich UI"
-    )
+    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress Rich UI")
 
     return parser
 
@@ -222,9 +216,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     formatter = get_formatter(json_mode=json_mode, quiet=quiet, console=console)
 
     # load the config
-    config_manager = (
-        get_config() if not args.config else ConfigManager(args.config)
-    )
+    config_manager = get_config() if not args.config else ConfigManager(args.config)
     config = config_manager.global_config
     apply_config_overrides(config, args)
 
@@ -243,7 +235,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     except RuntimeError as e:
         if str(e) == "not_in_git_repo":
             if rich_enabled:
-                console.print("[red]iskra --pulse: not inside a git repository[/]")
+                console.print(style("iskra --pulse: not inside a git repository", "error"))
             payload = OutputPayload(
                 success=False,
                 operation="status" if args.status_only else "commit",
@@ -261,17 +253,15 @@ def main(argv: Optional[list[str]] = None) -> None:
     repo_filter_kwargs = build_repo_filters(args)
     if repo_filter_kwargs:
         repo_paths = [path for path, _ in git_repos]
-        filtered_paths = set(
-            RepoFilter.apply_filters(repo_paths, **repo_filter_kwargs)
-        )
+        filtered_paths = set(RepoFilter.apply_filters(repo_paths, **repo_filter_kwargs))
         git_repos = [(p, m) for (p, m) in git_repos if p in filtered_paths]
 
     # nobody home?
     if not git_repos:
         if rich_enabled:
-            console.print(f"\n[yellow]{get_icon('warning')} No repositories found[/]")
+            console.print(f"\n{style(get_icon('warning') + ' No repositories found', 'warning')}")
             if not args.scan:
-                console.print("[dim]Run 'iskra init' to track repositories[/]")
+                console.print(style("Run 'iskra init' to track repositories", "dim"))
         payload = OutputPayload(
             success=True,
             operation="status" if args.status_only else "commit",
@@ -312,7 +302,9 @@ def main(argv: Optional[list[str]] = None) -> None:
     # ok let's actually do the thing
     if rich_enabled:
         mode = "compact mode" if (args.compact and args.status_only) else ""
-        console.print(f"[bold blue]Processing {len(git_repos)} repositories {mode}...[/]\n")
+        console.print(
+            f"{style(f'Processing {len(git_repos)} repositories {mode}...', 'info')}\n"
+        )
 
     processor = RepositoryProcessor(config_manager, orig_cwd, console)
     repo_results, stats = processor.process_all(
@@ -358,6 +350,6 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        console.print("\n[bold red]Operation canceled by user[/]")
+        console.print(f"\n{style('Operation canceled by user', 'error')}")
     except Exception:
         console.print_exception()

@@ -16,6 +16,8 @@ from rich.table import Table
 from rich.text import Text
 from rich.panel import Panel
 
+from iskra.ui.formatting import style, get_color
+
 
 console = Console()
 
@@ -332,7 +334,7 @@ def main(argv: list[str] = None) -> int:
 
     # Check if we're in a git repo
     if not is_git_repo():
-        console.print("[red]Error:[/] Not in a git repository")
+        console.print(f"{style('Error:', 'error')} Not in a git repository")
         return 1
 
     repo_name = get_repo_name()
@@ -342,8 +344,8 @@ def main(argv: list[str] = None) -> int:
     console.print()
     console.print(
         Panel(
-            f"[bold]{repo_name}[/] [dim]on[/] [cyan]{branch}[/]",
-            border_style="dim",
+            f"{style(repo_name, 'highlight')} {style('on', 'dim')} {style(branch, 'primary')}",
+            border_style=get_color("dim") or "dim",
             padding=(0, 1),
         )
     )
@@ -363,7 +365,7 @@ def main(argv: list[str] = None) -> int:
         if graph_output:
             display_graph(graph_output)
         else:
-            console.print("[dim]No commits found[/]")
+            console.print(style("No commits found", "dim"))
     else:
         # Regular log
         commits = get_commits(
@@ -377,7 +379,7 @@ def main(argv: list[str] = None) -> int:
         )
 
         if not commits:
-            console.print("[dim]No commits found[/]")
+            console.print(style("No commits found", "dim"))
             return 0
 
         if args.oneline:

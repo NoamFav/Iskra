@@ -10,6 +10,7 @@ from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 from rich.console import Console
+from ..ui.formatting import style, get_color
 
 
 OperationType = Literal["commit", "status", "pull", "init", "exec", "other"]
@@ -112,18 +113,18 @@ class ConsoleFormatter(BaseFormatter):
 
     def emit(self, payload: OutputPayload) -> None:
         """Print a nice summary with colors and stuff."""
-        border = "green" if payload.success else "red"
+        border = get_color("success") if payload.success else get_color("error")
 
-        self.console.rule(f"[bold]{payload.operation.upper()} summary[/bold]")
+        self.console.rule(style(f"{payload.operation.upper()} summary", "highlight"))
 
         self.console.print(
-            f"[bold]Repositories:[/bold] {payload.repos_success}/"
+            f"{style('Repositories:', 'highlight')} {payload.repos_success}/"
             f"{payload.repos_total} success, {payload.repos_failed} failed",
             style=border,
         )
 
         if payload.errors:
-            self.console.print("\n[bold red]Errors:[/bold red]")
+            self.console.print(f"\n{style('Errors:', 'error')}")
             for err in payload.errors:
                 self.console.print(f"- {err}")
 

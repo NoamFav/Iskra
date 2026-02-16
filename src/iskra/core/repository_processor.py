@@ -12,7 +12,7 @@ from iskra.core.processing_stats import ProcessingStats
 from iskra.output.formatter import RepoResult
 from iskra.ui.display import process_repository
 from iskra.config import ConfigManager
-from iskra.ui.formatting import get_icon
+from iskra.ui.formatting import get_icon, style, get_color
 
 
 class RepositoryProcessor:

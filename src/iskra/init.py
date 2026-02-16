@@ -17,7 +17,7 @@ from rich.prompt import Confirm, Prompt
 
 from iskra.config import ConfigManager, RepoInfo, GlobalConfig
 from iskra.core.repo_scanner import find_git_repos
-from iskra.ui.formatting import get_icon
+from iskra.ui.formatting import get_icon, style, get_color
 
 from iskra.output.formatter import (
     get_formatter,
@@ -85,9 +85,7 @@ def get_git_info(repo_path: str) -> dict:
 def scan_repositories(base_dir: str, config: GlobalConfig) -> List[str]:
 
     console.print(
-        f"\n[bold blue]{
-            get_icon('folder')
-        } Scanning for repositories in {base_dir}...[/]"
+        f"\n{style(get_icon('folder') + f' Scanning for repositories in {base_dir}...', 'primary')}"
     )
 
     repos = find_git_repos(
@@ -99,9 +97,7 @@ def scan_repositories(base_dir: str, config: GlobalConfig) -> List[str]:
     )
 
     console.print(
-        f"[bold green]{
-            get_icon('success')
-        } Found {len(repos)} repositories[/]\n"
+        f"{style(get_icon('success') + f' Found {len(repos)} repositories', 'success')}\n"
     )
     return repos
 
@@ -111,19 +107,19 @@ def display_repo_table(repos: List[RepoInfo]):
     table = Table(
         title=f"{get_icon('project')} Tracked Repositories",
         show_header=True,
-        header_style="bold cyan",
+        header_style=get_color("header"),
     )
 
-    table.add_column("Name", style="cyan")
-    table.add_column("Path", style="white")
-    table.add_column("Branch", style="yellow")
-    table.add_column("Remote", style="blue")
-    table.add_column("Status", style="green")
+    table.add_column("Name", style=get_color("primary"))
+    table.add_column("Path", style=get_color("highlight"))
+    table.add_column("Branch", style=get_color("secondary"))
+    table.add_column("Remote", style=get_color("info"))
+    table.add_column("Status", style=get_color("success"))
 
     for repo in repos:
 
         status = "✓ Active" if repo.active else "✗ Inactive"
-        status_style = "green" if repo.active else "red"
+        status_style = get_color("success") if repo.active else get_color("error")
 
         remote = repo.remote_url or "N/A"
         if len(remote) > 50:
@@ -148,10 +144,10 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
 
         console.print(
             Panel(
-                "[bold white]Iskra Initialization[/]",
-                border_style="cyan",
-                title="[bold blue]Setup[/]",
-                subtitle="[dim]Version 1.0.0[/]",
+                style("Iskra Initialization", "highlight"),
+                border_style=get_color("primary"),
+                title=style("Setup", "primary"),
+                subtitle=style("Version 1.0.0", "dim"),
             )
         )
 
@@ -172,9 +168,7 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
     if not base_dir.exists():
         if rich_enabled:
             console.print(
-                f"[yellow]{
-                    get_icon('warning')
-                } Base directory does not exist: {base_dir}[/]"
+                style(f"{get_icon('warning')} Base directory does not exist: {base_dir}", "warning")
             )
 
         if (
@@ -188,12 +182,12 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
             base_dir.mkdir(parents=True, exist_ok=True)
             if rich_enabled:
                 console.print(
-                    f"[green]{get_icon('success')} Created directory[/]",
+                    style(f"{get_icon('success')} Created directory", "success"),
                 )
         else:
 
             if rich_enabled:
-                console.print("[red]Cancelled[/]")
+                console.print(style("Cancelled", "error"))
             payload = OutputPayload(
                 success=False,
                 operation="init",
@@ -208,7 +202,7 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
 
     if rich_enabled and not args.yes:
         console.print(
-            "\n[bold cyan]Configuration Options[/]",
+            f"\n{style('Configuration Options', 'header')}",
         )
 
         if Confirm.ask(
@@ -260,7 +254,7 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
     if not repo_paths:
         if rich_enabled:
             console.print(
-                f"[yellow]{get_icon('warning')} No repositories found[/]",
+                style(f"{get_icon('warning')} No repositories found", "warning"),
             )
         payload = OutputPayload(
             success=True,
@@ -290,7 +284,7 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
             f"\nTrack these {len(repo_paths)} repositories?", default=True
         )
     ):
-        console.print("[yellow]Cancelled[/]")
+        console.print(style("Cancelled", "warning"))
         payload = OutputPayload(
             success=False,
             operation="init",
@@ -395,9 +389,7 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
 
     if rich_enabled:
         console.print(
-            f"\n[bold green]{
-                get_icon('success')
-            } Successfully tracked {tracked_count} repositories![/]\n"
+            f"\n{style(get_icon('success') + f' Successfully tracked {tracked_count} repositories!', 'success')}\n"
         )
 
         if args.show_repos or (
@@ -410,11 +402,11 @@ def init_command(args, formatter, json_mode: bool, quiet: bool):
             display_repo_table(config_manager.get_all_repos())
 
         console.print(
-            f"\n[dim]Configuration saved to: {config_manager.config_dir}[/]",
+            style(f"\nConfiguration saved to: {config_manager.config_dir}", "dim"),
         )
-        console.print(f"[dim]  • Config: {config_manager.config_file}[/]")
-        console.print(f"[dim]  • Repos:  {config_manager.repos_file}[/]")
-        console.print(f"[dim]  • Logs:   {config_manager.logs_dir}[/]")
+        console.print(style(f"  • Config: {config_manager.config_file}", "dim"))
+        console.print(style(f"  • Repos:  {config_manager.repos_file}", "dim"))
+        console.print(style(f"  • Logs:   {config_manager.logs_dir}", "dim"))
 
     payload = OutputPayload(
         success=(tracked_count > 0),
@@ -440,12 +432,10 @@ def list_command(args, formatter, json_mode: bool, quiet: bool):
     if not repos:
         if rich_enabled:
             console.print(
-                f"[yellow]{
-                    get_icon('warning')
-                } No tracked repositories found[/]"
+                style(f"{get_icon('warning')} No tracked repositories found", "warning")
             )
             console.print(
-                "\n[dim]Run 'iskra init' to scan and track repositories[/]",
+                style("\nRun 'iskra init' to scan and track repositories", "dim"),
             )
 
         payload = OutputPayload(
@@ -504,7 +494,7 @@ def add_command(args, formatter, json_mode: bool, quiet: bool):
     if repo_root is None:
         # not a git repo anywhere up the tree
         console.print(
-            f"[red]Not a git repository: {args.path}[/]",
+            style(f"Not a git repository: {args.path}", "error"),
         )
         payload = OutputPayload(
             success=False,
@@ -538,15 +528,11 @@ def add_command(args, formatter, json_mode: bool, quiet: bool):
     if rich_enabled:
         if added:
             console.print(
-                f"[green]{
-                    get_icon('success')
-                } Added repository: {repo_path.name}[/]"
+                style(f"{get_icon('success')} Added repository: {repo_path.name}", "success")
             )
         else:
             console.print(
-                f"[yellow]{
-                    get_icon('warning')
-                } Repository already tracked[/]"
+                style(f"{get_icon('warning')} Repository already tracked", "warning")
             )
 
     payload = OutputPayload(
@@ -585,7 +571,7 @@ def remove_command(args, formatter, json_mode: bool, quiet: bool):
 
     if repo_root is None:
         # not a git repo anywhere up the tree
-        console.print(f"[red]Not a git repository: {args.path}[/]")
+        console.print(style(f"Not a git repository: {args.path}", "error"))
         payload = OutputPayload(
             success=False,
             operation="init",
@@ -611,13 +597,11 @@ def remove_command(args, formatter, json_mode: bool, quiet: bool):
     if rich_enabled:
         if removed:
             console.print(
-                f"[green]{
-                    get_icon('success')
-                } Removed repository: {repo_path}[/]"
+                style(f"{get_icon('success')} Removed repository: {repo_path}", "success")
             )
         else:
             console.print(
-                f"[yellow]{get_icon('warning')} Repository not tracked[/]",
+                style(f"{get_icon('warning')} Repository not tracked", "warning"),
             )
 
     payload = OutputPayload(
@@ -746,7 +730,7 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
 
-        console.print("\n[bold red]Operation cancelled by user[/]")
+        console.print(style("\nOperation cancelled by user", "error"))
     except Exception:
 
         console.print_exception()

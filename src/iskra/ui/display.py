@@ -16,7 +16,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.tree import Tree
 
-from .formatting import get_icon, get_file_icon
+from .formatting import get_icon, get_file_icon, style, get_color
 from ..core.git_operations import (
     get_current_branch,
     git_pull,

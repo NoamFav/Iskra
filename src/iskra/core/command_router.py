@@ -28,7 +28,7 @@ KNOWN_COMMANDS = [
 def show_unknown_command_error(cmd: str) -> None:
     """Show a styled error for unknown commands. Matches iskra -h aesthetic."""
     from rich.console import Console
-    from rich.panel import Panel
+    from iskra.ui.formatting import style
 
     console = Console()
 
@@ -36,16 +36,16 @@ def show_unknown_command_error(cmd: str) -> None:
     suggestions = get_close_matches(cmd, KNOWN_COMMANDS, n=3, cutoff=0.4)
 
     console.print()
-    console.print(f"[bold red]Error:[/] Unknown command '[yellow]{cmd}[/]'")
+    console.print(f"{style('Error:', 'error')} Unknown command '{style(cmd, 'warning')}'")
     console.print()
 
     if suggestions:
-        console.print("[dim]Did you mean:[/]")
+        console.print(style("Did you mean:", "dim"))
         for s in suggestions:
-            console.print(f"  [green]iskra {s}[/]")
+            console.print(f"  {style(f'iskra {s}', 'command')}")
         console.print()
 
-    console.print("[dim]Run [white]iskra -h[/] for available commands[/]")
+    console.print(f"{style('Run', 'dim')} {style('iskra -h', 'highlight')} {style('for available commands', 'dim')}")
     console.print()
 
 
@@ -63,7 +63,11 @@ class CommandRouter:
     @classmethod
     def route(cls, argv: list[str]) -> list[str]:
         """Route commands. Map shortcuts, handle help, dispatch subcommands."""
-        if not argv or argv[0] in ("-h", "--help", "help"):
+        # No args = run default commit workflow
+        if not argv:
+            return []
+
+        if argv[0] in ("-h", "--help", "help"):
             from iskra.help import show_help
             show_help()
             sys.exit(0)

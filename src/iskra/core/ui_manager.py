@@ -3,7 +3,7 @@ UI Manager. Handles all the user-facing output and prompts.
 """
 
 from rich.console import Console
-from iskra.ui.formatting import print_header
+from iskra.ui.formatting import print_header, style, get_color
 from rich.prompt import Confirm
 
 
@@ -26,17 +26,13 @@ class UIManager:
 
         if args.dry_run:
             self.console.print(
-                (
-                    "[dim yellow]⚠[/]  "
-                    "[yellow]dry run mode[/] "
-                    "[dim]— no changes will be made[/]\n"
-                )
+                f"{style('⚠', 'warning')}  {style('dry run mode', 'warning')} {style('— no changes will be made', 'dim')}\n"
             )
 
         if args.status_only:
-            mode_text = "[dim cyan]ℹ[/]  [cyan]status only mode[/]"
+            mode_text = f"{style('ℹ', 'primary')}  {style('status only mode', 'primary')}"
             if args.compact:
-                mode_text += " [dim]— compact display for clean repos[/]"
+                mode_text += f" {style('— compact display for clean repos', 'dim')}"
             self.console.print(f"{mode_text}\n")
 
     def show_repository_summary(self, repo_count: int, message: str = ""):
@@ -45,12 +41,10 @@ class UIManager:
             return
 
         if message:
-            self.console.print(
-                f"[dim]{message}[/]\n",
-            )
+            self.console.print(f"{style(message, 'dim')}\n")
 
         self.console.print(
-            f"[white]Found[/] [bold]{repo_count}[/] [white]repositories[/]\n",
+            f"Found {style(str(repo_count), 'highlight')} repositories\n"
         )
 
     def confirm_processing(self, repo_count: int) -> bool:
@@ -62,7 +56,7 @@ class UIManager:
             f"Process {repo_count} repositories?",
             default=True,
         ):
-            self.console.print("[dim yellow]cancelled[/]")
+            self.console.print(style("cancelled", "warning"))
             return False
 
         return True
@@ -84,29 +78,23 @@ class UIManager:
 
     def _show_compact_summary(self, stats, total: int):
         """Quick summary. Clean vs dirty counts."""
-        self.console.print("[dim]Summary:[/]")
+        self.console.print(style("Summary:", "dim"))
         self.console.print(
-            f"  [green]✓[/] [dim]clean:[/] [green]{
-                stats.clean_count
-            }[/]"
+            f"  {style('✓', 'success')} {style('clean:', 'dim')} {style(str(stats.clean_count), 'success')}"
         )
         self.console.print(
-            f"  [yellow]●[/] [dim]with changes:[/] [yellow]{
-                stats.dirty_count
-            }[/]"
+            f"  {style('●', 'warning')} {style('with changes:', 'dim')} {style(str(stats.dirty_count), 'warning')}"
         )
-        self.console.print(f"  [dim]total:[/] [white]{total}[/]")
+        self.console.print(f"  {style('total:', 'dim')} {style(str(total), 'highlight')}")
         self.console.print()
 
     def _show_standard_summary(self, success_count: int, total: int):
         """Standard summary. X/Y processed, green if all good."""
         all_success = success_count == total
         status = "✓" if all_success else "◆"
-        color = "green" if all_success else "yellow"
+        color_key = "success" if all_success else "warning"
 
         self.console.print(
-            f"[{color}]{status}[/] "
-            f"[white]Processed[/] [bold]{success_count}/{total}[/] "
-            f"[dim]repositories[/]"
+            f"{style(status, color_key)} Processed {style(f'{success_count}/{total}', 'highlight')} {style('repositories', 'dim')}"
         )
         self.console.print()

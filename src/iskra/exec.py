@@ -20,6 +20,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from iskra.config import get_config
 from iskra.core.repository_selector import RepositorySelector
 from iskra.core.filters import RepoFilter
+from iskra.ui.formatting import style, get_color
 
 
 console = Console()
@@ -213,7 +214,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             scan=args.scan, pulse=False
         )
     except RuntimeError as e:
-        console.print(f"[red]Error: {e}[/]")
+        console.print(f"{style('Error:', 'error')} {e}")
         return 1
 
     # filter
@@ -231,21 +232,21 @@ def main(argv: Optional[list[str]] = None) -> int:
             git_repos = [(p, m) for p, m in git_repos if p in filtered]
 
     if not git_repos:
-        console.print("[yellow]No repositories found[/]")
+        console.print(style("No repositories found", "warning"))
         return 0
 
     # preview
     if not args.quiet:
         console.print(
-            f"\n[bold]Running command across {len(git_repos)} repositories:[/]"
+            f"\n{style(f'Running command across {len(git_repos)} repositories:', 'highlight')}"
         )
-        console.print(f"[cyan]$ {args.command}[/]\n")
+        console.print(f"{style('$ ' + args.command, 'primary')}\n")
 
     # confirm
     if not args.yes and not args.quiet:
-        response = console.input("[dim]Continue? [Y/n]: [/]").lower()
+        response = console.input(f"{style('Continue? [Y/n]: ', 'dim')}").lower()
         if response not in ("", "y", "yes"):
-            console.print("[yellow]Cancelled[/]")
+            console.print(style("Cancelled", "warning"))
             return 0
 
     # do the thing
@@ -305,7 +306,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                     ))
 
                 if args.fail_fast:
-                    console.print("\n[red]Stopped: --fail-fast enabled[/]")
+                    console.print(f"\n{style('Stopped: --fail-fast enabled', 'error')}")
                     break
 
             results.append({
@@ -321,11 +322,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         console.print()
         if fail_count == 0:
             console.print(
-                f"[green bold]✓ All {success_count} repositories completed successfully[/]"
+                style(f"✓ All {success_count} repositories completed successfully", "success")
             )
         else:
             console.print(
-                f"[yellow]Completed: {success_count} succeeded, {fail_count} failed[/]"
+                style(f"Completed: {success_count} succeeded, {fail_count} failed", "warning")
             )
 
     return 0 if fail_count == 0 else 1

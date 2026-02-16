@@ -34,6 +34,27 @@ class RepoInfo:
 
 
 @dataclass
+class Theme:
+    """Theme of the ui, pretty stars and fancy doo da"""
+
+    theme: str = "default"
+    icons_enabled: bool = True
+
+    # Optional override in case themes are not enough,
+    # or too much if you hate sparkles
+    colors: Optional[dict[str, str]] = None
+
+    def to_dict(self) -> Dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "Theme":
+        valid_keys = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        return cls(**filtered_data)
+
+
+@dataclass
 class GlobalConfig:
     """
     All the settings. There's a lot. Like way too many.
@@ -154,11 +175,13 @@ class ConfigManager:
         self.config_file = self.config_dir / "config.yaml"
         self.repos_file = self.config_dir / "repos.json"
         self.logs_dir = self.config_dir / "logs"
+        self.ui_file = self.config_dir / "ui.yaml"
 
         self._ensure_structure()
 
         self.global_config = self._load_global_config()
         self.tracked_repos = self._load_tracked_repos()
+        self.ui_config = self.load_ui_config()
 
     def _ensure_structure(self) -> None:
         """Create the dirs if they don't exist. Not rocket science."""
@@ -199,6 +222,18 @@ class ConfigManager:
         except Exception as e:
             print(f"Warning: Could not load tracked repos: {e}")
             return {}
+
+    def load_ui_config(self) -> Theme:
+        """Load ui.yaml if it exists. Silent fallback to defaults."""
+        if not self.ui_file.exists():
+            return Theme()
+        try:
+            with open(self.ui_file, "r") as f:
+                data = yaml.safe_load(f) or {}
+            return Theme.from_dict(data)
+        except Exception as e:
+            print(f"Warning: Could not load ui config: {e}")
+            return Theme()
 
     def _save_tracked_repos(self, repos: Dict[str, RepoInfo]) -> None:
         data = {path: info.to_dict() for path, info in repos.items()}

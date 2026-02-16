@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.traceback import install as install_traceback
 from typing import Optional
 
-from .ui.formatting import print_header, get_icon
+from .ui.formatting import print_header, get_icon, style, get_color
 from .ui.tables import create_config_table
 from .github.api import get_github_repos
 from .github.clone import process_repository
@@ -108,7 +108,7 @@ def main(argv: Optional[list[str]] = None):
     if not os.path.exists(base_dir):
         os.makedirs(base_dir)
         console.print(
-            f"[cyan]{get_icon('folder')} Created base directory at {base_dir}"
+            style(f"{get_icon('folder')} Created base directory at {base_dir}", "primary")
         )
 
     repositories = get_github_repos(
@@ -125,20 +125,16 @@ def main(argv: Optional[list[str]] = None):
 
     if not (args.json or args.quiet):
         summary_panel = Panel(
-            f"{
-                get_icon('github')
-            } Found [bold green]{total}[/] repositories to process\n"
-            + f"{
-                get_icon('folder')
-            } Target directory: [bold blue]{base_dir}[/]",
+            f"{get_icon('github')} Found {style(str(total), 'success')} repositories to process\n"
+            + f"{get_icon('folder')} Target directory: {style(base_dir, 'primary')}",
             title="Repository Summary",
-            border_style="blue",
+            border_style=get_color("info"),
         )
         console.print(summary_panel)
 
     if repositories:
         if not (args.json or args.quiet):
-            console.print(f"[bold blue]Processing {total} repositories...[/]")
+            console.print(style(f"Processing {total} repositories...", "primary"))
 
         for idx, repo in enumerate(repositories, 1):
 
@@ -179,11 +175,9 @@ def main(argv: Optional[list[str]] = None):
         if not (args.json or args.quiet):
             console.print()
             final_panel = Panel(
-                f"{
-                    get_icon('sparkles')
-                } [bold]{success_count}/{total}[/] repositories "
+                f"{get_icon('sparkles')} {style(f'{success_count}/{total}', 'highlight')} repositories "
                 f"processed successfully {get_icon('sparkles')}",
-                border_style="green" if success_count == total else "yellow",
+                border_style=get_color("success") if success_count == total else get_color("warning"),
                 title="Processing Complete",
                 title_align="center",
             )
@@ -192,9 +186,7 @@ def main(argv: Optional[list[str]] = None):
 
         if not (args.json or args.quiet):
             console.print(
-                f"[bold yellow]{
-                    get_icon('warning')
-                } No repositories found to process[/]"
+                style(f"{get_icon('warning')} No repositories found to process", "warning")
             )
 
     payload = OutputPayload(
@@ -215,7 +207,7 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
 
-        console.print("\n[bold red]Operation canceled by user[/]")
+        console.print(style("\nOperation canceled by user", "error"))
     except Exception:
 
         console.print_exception()
