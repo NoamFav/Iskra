@@ -263,6 +263,9 @@ iskra -y
 
 # Only show status, don't commit
 iskra --status-only
+
+# Disable colors and fancy icons (for CI/CD or minimal terminals)
+iskra --minimal
 ```
 
 #### Special Operations
@@ -467,7 +470,8 @@ dry_run: false
 # UI preferences
 show_diff: false         # Show diff before committing
 verbose: false
-use_rich_ui: true
+use_rich_ui: true        # Use Rich for pretty output
+# Minimal mode: use --minimal flag to disable colors and fancy icons
 
 # Filtering
 exclude_patterns: []
