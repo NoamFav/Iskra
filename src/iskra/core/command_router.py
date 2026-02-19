@@ -1,6 +1,8 @@
 """
-Command router. Turns 'iskra sync' into actual flags.
-Also handles help and dispatches to subcommands.
+Command router. Routes commands to either Go CLI or Python handlers.
+
+Most commands now delegate to the Go CLI for processing.
+Python still handles some commands that need Python-specific features.
 """
 
 import sys
@@ -22,7 +24,23 @@ KNOWN_COMMANDS = [
     "sync",
     "sync-all",
     "help",
+    "diff",
+    "branches",
+    "br",
+    "stash",
 ]
+
+# Commands that should be handled by Go CLI directly
+GO_PASSTHROUGH_COMMANDS = {
+    "log",
+    "info",
+    "diff",
+    "branches",
+    "br",
+    "stash",
+    "scan",
+    "exec",
+}
 
 
 def show_unknown_command_error(cmd: str) -> None:
@@ -47,6 +65,25 @@ def show_unknown_command_error(cmd: str) -> None:
 
     console.print(f"{style('Run', 'dim')} {style('iskra -h', 'highlight')} {style('for available commands', 'dim')}")
     console.print()
+
+
+def run_go_cli(argv: list[str]) -> int:
+    """Run the Go CLI directly with given arguments."""
+    from iskra.core.go_bridge import GO_BINARY, is_go_available
+    import subprocess
+
+    if not is_go_available():
+        from rich.console import Console
+        from iskra.ui.formatting import style
+
+        console = Console()
+        console.print(f"\n{style('Error:', 'error')} Go CLI not found")
+        console.print(style("Build it with:", "dim"))
+        console.print(style("  cd go-core && go build -o ../bin/iskra ./cmd/iskra", "command"))
+        console.print()
+        return 1
+
+    return subprocess.run([GO_BINARY] + argv).returncode
 
 
 class CommandRouter:
@@ -80,6 +117,18 @@ class CommandRouter:
 
         cmd = argv[0]
 
+        # =====================================================================
+        # Commands that passthrough directly to Go CLI
+        # These are faster and have no Python dependencies
+        # =====================================================================
+        if cmd in GO_PASSTHROUGH_COMMANDS:
+            sys.exit(run_go_cli(argv))
+
+        # =====================================================================
+        # Commands that still use Python handlers
+        # These need Python-specific features or haven't been migrated yet
+        # =====================================================================
+
         # Handle init subcommands separately
         if cmd == "init":
             # Handle init help
@@ -88,34 +137,17 @@ class CommandRouter:
                 show_init_help()
                 sys.exit(0)
             from iskra import init as init_cli
-
             subcmd = ["init"] if len(argv) == 1 else argv[1:]
             sys.exit(init_cli.main(subcmd))
+
         if cmd == "clone":
             from iskra import clone_repos as clone_cli
-
             sys.exit(clone_cli.main(argv[1:]))
+
         if cmd == "gh":
             from iskra import gh as gh_cli
-
             sys.exit(gh_cli.main(argv[1:]))
-        if cmd == "exec":
-            # Handle exec help
-            if len(argv) > 1 and argv[1] in ("-h", "--help"):
-                from iskra.help import show_exec_help
-                show_exec_help()
-                sys.exit(0)
-            from iskra import exec as exec_cli
 
-            sys.exit(exec_cli.main(argv[1:]))
-        if cmd == "log":
-            from iskra import log as log_cli
-
-            sys.exit(log_cli.main(argv[1:]))
-        if cmd == "info":
-            from iskra import info as info_cli
-
-            sys.exit(info_cli.main(argv[1:]))
         # Handle commit command (default behavior)
         if cmd == "commit":
             return argv[1:]
