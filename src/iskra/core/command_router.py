@@ -134,16 +134,15 @@ def _translate_python_to_go(argv: list[str]) -> list[str] | None:
     subcommand = args.subcommand or ""
 
     # Map Python subcommands / flags → Go subcommands
-    if subcommand == "pulse" or args.pulse:
-        go_cmd = ["pulse"]
-    elif subcommand in ("status", "s") or args.status_only:
-        go_cmd = ["status"]
+    if subcommand in ("sync-all",):
+        go_cmd = ["sync-all"]
     elif subcommand in ("sync",):
         go_cmd = ["sync"]
-    elif subcommand in ("sync-all",):
-        go_cmd = ["sync-all"]
-    elif subcommand in ("commit", "") or True:
-        go_cmd = ["commit"]
+    elif subcommand in ("status", "s") or (args.status_only and not (subcommand == "pulse" or args.pulse)):
+        go_cmd = ["status"]
+    elif subcommand == "pulse" or args.pulse:
+        # pulse + status-only → single-repo status view (pulse with --status-only)
+        go_cmd = ["pulse"]
     else:
         go_cmd = ["commit"]
 
@@ -161,7 +160,7 @@ def _translate_python_to_go(argv: list[str]) -> list[str] | None:
 
     # Flags valid for commit/status/pulse
     if go_cmd[0] not in ("sync", "sync-all"):
-        if args.status_only and go_cmd[0] == "commit":
+        if args.status_only and go_cmd[0] in ("commit", "pulse"):
             sub_flags.append("--status-only")
         if args.pull_only:
             sub_flags.append("--pull-only")
