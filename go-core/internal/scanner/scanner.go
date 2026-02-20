@@ -75,6 +75,18 @@ type Result struct {
 }
 
 // matchAny checks if path matches any glob pattern
+// MatchesPatterns returns true if name passes only/exclude pattern filters.
+// Empty onlyPatterns means "match all". A name matching any excludePattern is excluded.
+func MatchesPatterns(name string, onlyPatterns, excludePatterns []string) bool {
+	if len(onlyPatterns) > 0 && !matchAny(name, onlyPatterns) {
+		return false
+	}
+	if len(excludePatterns) > 0 && matchAny(name, excludePatterns) {
+		return false
+	}
+	return true
+}
+
 func matchAny(path string, patterns []string) bool {
 	for _, pattern := range patterns {
 		matched, err := filepath.Match(pattern, path)

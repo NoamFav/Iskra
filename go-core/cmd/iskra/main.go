@@ -831,15 +831,15 @@ func printRepoResult(result *processor.RepoResult, index, total int, quiet bool)
 func getRepos(cfgMgr *config.Manager, scanDir, only, exclude string) []string {
 	var repos []string
 
-	if scanDir != "" {
-		var onlyPatterns, excludePatterns []string
-		if only != "" {
-			onlyPatterns = strings.Split(only, ",")
-		}
-		if exclude != "" {
-			excludePatterns = strings.Split(exclude, ",")
-		}
+	var onlyPatterns, excludePatterns []string
+	if only != "" {
+		onlyPatterns = strings.Split(only, ",")
+	}
+	if exclude != "" {
+		excludePatterns = strings.Split(exclude, ",")
+	}
 
+	if scanDir != "" {
 		found, _ := scanner.FindGitRepos(scanner.Options{
 			BaseDir:         scanDir,
 			MaxDepth:        cfgMgr.GlobalConfig.MaxDepth,
@@ -851,6 +851,9 @@ func getRepos(cfgMgr *config.Manager, scanDir, only, exclude string) []string {
 		}
 	} else {
 		for _, repo := range cfgMgr.GetActiveRepos() {
+			if !scanner.MatchesPatterns(repo.Name, onlyPatterns, excludePatterns) {
+				continue
+			}
 			repos = append(repos, repo.Path)
 		}
 	}

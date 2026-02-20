@@ -159,8 +159,8 @@ def _translate_python_to_go(argv: list[str]) -> list[str] | None:
     # Build subcommand flags
     sub_flags = []
 
+    # Flags valid for commit/status/pulse
     if go_cmd[0] not in ("sync", "sync-all"):
-        # commit / status / pulse flags
         if args.status_only and go_cmd[0] == "commit":
             sub_flags.append("--status-only")
         if args.pull_only:
@@ -177,10 +177,12 @@ def _translate_python_to_go(argv: list[str]) -> list[str] | None:
             sub_flags.append("--has-changes")
         if args.commit_message:
             sub_flags.extend(["--message", args.commit_message])
-        if args.only:
-            sub_flags.extend(["--only", ",".join(args.only)])
-        if args.exclude:
-            sub_flags.extend(["--exclude", ",".join(args.exclude)])
+
+    # Filter flags valid for all commands
+    if args.only:
+        sub_flags.extend(["--only", ",".join(args.only)])
+    if args.exclude:
+        sub_flags.extend(["--exclude", ",".join(args.exclude)])
 
     return global_flags + go_cmd + sub_flags
 
