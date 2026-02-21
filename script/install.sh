@@ -12,7 +12,7 @@ trap 'error_exit "Installation failed at line $LINENO"' ERR
 # Configuration
 #==============================================================================
 
-ISKRA_VERSION="1.0.0"
+ISKRA_VERSION="2.0.0"
 INSTALL_DIR="$HOME/.iskra"
 BIN_DIR="$HOME/.local/bin"
 CONFIG_DIR="$HOME/.config/iskra"
@@ -105,7 +105,7 @@ check_dependencies() {
 
     local missing=0
 
-    # Go 1.21+ is required to build the CLI binary
+    # Go 1.21+ is required
     if check_command go; then
         local go_version
         go_version=$(go version | grep -oE '[0-9]+\.[0-9]+' | head -1)
@@ -135,21 +135,14 @@ check_dependencies() {
         missing=1
     fi
 
-    # Python 3.8+ is optional (only for init/clone/gh subcommands)
-    if check_command python3; then
-        local py_version
-        py_version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-        local py_major py_minor
-        py_major=$(echo "$py_version" | cut -d. -f1)
-        py_minor=$(echo "$py_version" | cut -d. -f2)
-
-        if [ "$py_major" -ge 3 ] && [ "$py_minor" -ge 8 ]; then
-            print_success "Python ${py_version} (for init/clone/gh)"
-        else
-            print_warning "Python 3.8+ recommended (found $py_version)"
-        fi
+    # gh CLI is optional but recommended
+    if check_command gh; then
+        local gh_version
+        gh_version=$(gh --version | head -1 | awk '{print $3}')
+        print_success "gh CLI ${gh_version}"
     else
-        print_warning "Python 3 not found — init/clone/gh subcommands will be unavailable"
+        print_warning "gh CLI not found — 'iskra gh' and 'iskra clone' will be unavailable"
+        print_info "Install from: https://cli.github.com/"
     fi
 
     echo ""
@@ -173,9 +166,6 @@ install_from_source() {
 
     # Copy Go source
     rsync -a --delete "$repo_dir/go-core/" "$INSTALL_DIR/go-core/"
-
-    # Copy Python source (for init/clone/gh)
-    rsync -a --delete "$repo_dir/src/" "$INSTALL_DIR/lib/"
 
     print_success "Copied source files to $INSTALL_DIR"
 }
@@ -212,52 +202,9 @@ install_binaries() {
 
     mkdir -p "$BIN_DIR"
 
-    # Primary binary: the Go CLI
     cp "$INSTALL_DIR/bin/iskra" "$BIN_DIR/iskra"
     chmod +x "$BIN_DIR/iskra"
-    print_success "iskra (Go CLI) → $BIN_DIR/iskra"
-
-    # Python backend shim for init/clone/gh (only if Python is available)
-    if check_command python3; then
-        cat > "$BIN_DIR/iskra-py" << 'EOFWRAPPER'
-#!/usr/bin/env python3
-"""Python backend for iskra init/clone/gh subcommands."""
-import sys
-import os
-sys.path.insert(0, os.path.expanduser('~/.iskra/lib'))
-from iskra.iskra import main
-if __name__ == '__main__':
-    main()
-EOFWRAPPER
-        chmod +x "$BIN_DIR/iskra-py"
-        print_success "iskra-py (Python backend) → $BIN_DIR/iskra-py"
-    fi
-}
-
-#==============================================================================
-# Install Python Dependencies
-#==============================================================================
-
-install_python_deps() {
-    if ! check_command python3; then
-        return 0
-    fi
-
-    print_step "Installing Python dependencies..."
-
-    if check_command pip3; then
-        pip3 install --user --quiet \
-            rich \
-            anthropic \
-            gitpython \
-            PyYAML \
-            requests \
-            2>/dev/null \
-            && print_success "Python dependencies installed" \
-            || print_warning "Failed to install some Python deps (init/clone/gh may be limited)"
-    else
-        print_warning "pip3 not found — skipping Python dependencies"
-    fi
+    print_success "iskra → $BIN_DIR/iskra"
 }
 
 #==============================================================================
@@ -398,6 +345,8 @@ show_next_steps() {
     echo -e "  ${CYAN}iskra sync${RESET}          Pull + push tracked repos"
     echo -e "  ${CYAN}iskra log${RESET}           Show git history"
     echo -e "  ${CYAN}iskra info${RESET}          Show repo statistics"
+    echo -e "  ${CYAN}iskra gh info${RESET}       Show GitHub repo info"
+    echo -e "  ${CYAN}iskra clone${RESET}         Bulk-clone GitHub repos"
     echo -e "  ${CYAN}iskra --dry-run${RESET}     Preview operations"
     echo -e "  ${CYAN}iskra --help${RESET}        Show all options"
     echo ""
@@ -431,7 +380,6 @@ main() {
     install_from_source
     build_go_binary
     install_binaries
-    install_python_deps
     setup_path
     initialize_config
     verify_installation

@@ -3,8 +3,10 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -233,12 +235,13 @@ func (m *Manager) loadTrackedRepos() error {
 		return err
 	}
 
-	// Parse JSON manually since we need string keys
 	var repos map[string]*RepoInfo
-	if err := yaml.Unmarshal(data, &repos); err != nil {
+	if err := json.Unmarshal(data, &repos); err != nil {
 		return err
 	}
-	m.TrackedRepos = repos
+	if repos != nil {
+		m.TrackedRepos = repos
+	}
 	return nil
 }
 
@@ -315,6 +318,53 @@ func (m *Manager) GetActiveRepos() []*RepoInfo {
 		}
 	}
 	return repos
+}
+
+// GetAllRepos returns all tracked repos (active and inactive)
+func (m *Manager) GetAllRepos() []*RepoInfo {
+	var repos []*RepoInfo
+	for _, repo := range m.TrackedRepos {
+		repos = append(repos, repo)
+	}
+	return repos
+}
+
+// AddRepo adds or updates a repo in tracking. Returns true if newly added.
+func (m *Manager) AddRepo(info *RepoInfo) bool {
+	info.Active = true
+	if info.LastUpdated == "" {
+		info.LastUpdated = time.Now().Format(time.RFC3339)
+	}
+	_, existed := m.TrackedRepos[info.Path]
+	m.TrackedRepos[info.Path] = info
+	return !existed
+}
+
+// RemoveRepo removes a repo from tracking. Returns true if it was tracked.
+func (m *Manager) RemoveRepo(path string) bool {
+	if _, ok := m.TrackedRepos[path]; !ok {
+		return false
+	}
+	delete(m.TrackedRepos, path)
+	return true
+}
+
+// SaveRepos writes the tracked repos to disk as JSON.
+func (m *Manager) SaveRepos() error {
+	data, err := json.MarshalIndent(m.TrackedRepos, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(m.reposFile(), data, 0644)
+}
+
+// SaveGlobalConfig writes the global config to disk as YAML.
+func (m *Manager) SaveGlobalConfig() error {
+	data, err := yaml.Marshal(m.GlobalConfig)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(m.configFile(), data, 0644)
 }
 
 // ExpandPath expands ~ to home directory

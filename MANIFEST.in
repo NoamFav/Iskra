@@ -1,4 +1,0 @@
-include README.md
-recursive-include src/iskra *.py
-recursive-include gocli *.go go.mod
-recursive-include src/iskra/bin *

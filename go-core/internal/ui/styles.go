@@ -37,10 +37,10 @@ var (
 
 // Icons - Nerd Font icons
 type IconSet struct {
-	Git, Folder, File, Success, Error, Warning, Info       string
-	Branch, Commit, Push, Pull, Add, Modified, Deleted     string
+	Git, Folder, File, Success, Error, Warning, Info        string
+	Branch, Commit, Push, Pull, Add, Modified, Deleted      string
 	Untracked, Conflict, Clock, Rocket, Spark, Check, Cross string
-	Arrow, Dots                                             string
+	Arrow, Dots, Lock                                        string
 }
 
 var NerdIcons = IconSet{
@@ -48,7 +48,7 @@ var NerdIcons = IconSet{
 	Warning: "", Info: "", Branch: "", Commit: "", Push: "",
 	Pull: "", Add: "", Modified: "󰏫", Deleted: "", Untracked: "",
 	Conflict: "", Clock: "", Rocket: "", Spark: "", Check: "",
-	Cross: "", Arrow: "", Dots: "",
+	Cross: "", Arrow: "", Dots: "", Lock: "",
 }
 
 var MinimalIcons = IconSet{
@@ -56,7 +56,7 @@ var MinimalIcons = IconSet{
 	Warning: "[!]", Info: "[i]", Branch: "->", Commit: "*", Push: "^",
 	Pull: "v", Add: "+", Modified: "~", Deleted: "-", Untracked: "?",
 	Conflict: "!", Clock: "@", Rocket: ">>", Spark: "*", Check: "[x]",
-	Cross: "[X]", Arrow: "->", Dots: "...",
+	Cross: "[X]", Arrow: "->", Dots: "...", Lock: "[lock]",
 }
 
 var Icons = NerdIcons

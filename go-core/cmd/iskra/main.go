@@ -10,9 +10,12 @@ import (
 	osexec "os/exec"
 	"strings"
 
+	"github.com/NoamFav/iskra/internal/clone"
 	"github.com/NoamFav/iskra/internal/config"
 	"github.com/NoamFav/iskra/internal/exec"
+	ghcmd "github.com/NoamFav/iskra/internal/gh"
 	"github.com/NoamFav/iskra/internal/info"
+	initcmd "github.com/NoamFav/iskra/internal/init"
 	"github.com/NoamFav/iskra/internal/processor"
 	"github.com/NoamFav/iskra/internal/scanner"
 	"github.com/NoamFav/iskra/internal/ui"
@@ -77,8 +80,8 @@ func main() {
 		exitCode = runPulse(cfgMgr, args, jsonOutput, quiet)
 	case "scan":
 		exitCode = runScan(cfgMgr, args, jsonOutput)
-	case "init":
-		exitCode = runInit(cfgMgr, args, jsonOutput)
+	case "init", "list", "ls", "add", "remove", "rm":
+		exitCode = runInit(cfgMgr, cmd, args, jsonOutput)
 	case "exec":
 		exitCode = runExec(cfgMgr, args, jsonOutput, quiet)
 	case "sync":
@@ -95,6 +98,10 @@ func main() {
 		exitCode = runBranches(args)
 	case "stash":
 		exitCode = runStash(args)
+	case "gh":
+		exitCode = runGH(args)
+	case "clone":
+		exitCode = runClone(args)
 	case "help":
 		printHelp()
 	default:
@@ -126,7 +133,12 @@ func printHelp() {
 	fmt.Println("    diff          Show git diff (colored)")
 	fmt.Println("    branches, br  List all branches")
 	fmt.Println("    stash         Stash management (list, push, pop)")
-	fmt.Println("    init          Initialize and manage tracking")
+	fmt.Println("    gh            GitHub integration (info, open, prs)")
+	fmt.Println("    clone         Bulk clone GitHub repositories")
+	fmt.Println("    init          Scan and track repositories")
+	fmt.Println("    list (ls)     List tracked repositories")
+	fmt.Println("    add           Add a repository to tracking")
+	fmt.Println("    remove (rm)   Remove a repository from tracking")
 	fmt.Println()
 	fmt.Println(ui.Bold("FLAGS:"))
 	fmt.Println("    -h, --help      Show help")
@@ -390,41 +402,57 @@ func runScan(cfgMgr *config.Manager, args []string, jsonOutput bool) int {
 	return 0
 }
 
-func runInit(cfgMgr *config.Manager, args []string, jsonOutput bool) int {
-	fs := flag.NewFlagSet("init", flag.ExitOnError)
-	var list, scanAndTrack bool
-	var add, remove string
-	fs.BoolVar(&list, "list", false, "List tracked repos")
-	fs.StringVar(&add, "add", "", "Add repo to tracking")
-	fs.StringVar(&remove, "remove", "", "Remove repo from tracking")
-	fs.BoolVar(&scanAndTrack, "scan", false, "Scan and track repos")
-	fs.Parse(args)
-
-	if jsonOutput {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		enc.Encode(map[string]interface{}{
-			"config_dir":    cfgMgr.ConfigDir,
-			"tracked_repos": cfgMgr.TrackedRepos,
-			"global_config": cfgMgr.GlobalConfig,
-		})
-		return 0
-	}
-
-	// Default: show info
-	ui.InfoMsg("Config directory: " + cfgMgr.ConfigDir)
-	ui.InfoMsg(fmt.Sprintf("Base directory: %s", config.ExpandPath(cfgMgr.GlobalConfig.BaseDir)))
-	ui.InfoMsg(fmt.Sprintf("Tracked repos: %d", len(cfgMgr.TrackedRepos)))
-
-	if len(cfgMgr.TrackedRepos) > 0 {
-		fmt.Println()
-		fmt.Println(ui.Bold("Tracked repositories:"))
-		for _, repo := range cfgMgr.GetActiveRepos() {
-			fmt.Printf("  %s %s\n", ui.Icons.Git, repo.Name)
+func runInit(cfgMgr *config.Manager, cmd string, args []string, jsonOutput bool) int {
+	switch cmd {
+	case "list", "ls":
+		fs := flag.NewFlagSet("list", flag.ExitOnError)
+		all := fs.Bool("all", false, "Include inactive repos")
+		fs.Parse(args)
+		if jsonOutput {
+			repos := cfgMgr.GetAllRepos()
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			enc.Encode(repos)
+			return 0
 		}
-	}
+		return initcmd.RunList(cfgMgr, *all)
 
-	return 0
+	case "add", "a":
+		fs := flag.NewFlagSet("add", flag.ExitOnError)
+		fs.Parse(args)
+		path := "."
+		if len(fs.Args()) > 0 {
+			path = fs.Args()[0]
+		}
+		return initcmd.RunAdd(cfgMgr, path)
+
+	case "remove", "rm":
+		fs := flag.NewFlagSet("remove", flag.ExitOnError)
+		fs.Parse(args)
+		path := "."
+		if len(fs.Args()) > 0 {
+			path = fs.Args()[0]
+		}
+		return initcmd.RunRemove(cfgMgr, path)
+
+	default: // "init"
+		fs := flag.NewFlagSet("init", flag.ExitOnError)
+		baseDir := fs.String("base-dir", "", "Base directory to scan")
+		yes := fs.Bool("y", false, "Accept all defaults")
+		fs.BoolVar(yes, "yes", false, "Accept all defaults")
+		fs.Parse(args)
+		if jsonOutput {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			enc.Encode(map[string]interface{}{
+				"config_dir":    cfgMgr.ConfigDir,
+				"tracked_repos": cfgMgr.TrackedRepos,
+				"global_config": cfgMgr.GlobalConfig,
+			})
+			return 0
+		}
+		return initcmd.RunInit(cfgMgr, *baseDir, *yes)
+	}
 }
 
 func runExec(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int {
@@ -859,4 +887,66 @@ func getRepos(cfgMgr *config.Manager, scanDir, only, exclude string) []string {
 	}
 
 	return repos
+}
+
+func runGH(args []string) int {
+	if len(args) == 0 {
+		fmt.Println("Usage: iskra gh <subcommand> [flags]")
+		fmt.Println("  info    Show GitHub info for current repo")
+		fmt.Println("  open    Open GitHub repo page in browser")
+		fmt.Println("  prs     List pull requests")
+		return 1
+	}
+
+	repoPath := ghcmd.GitRoot(".")
+	if repoPath == "" {
+		ui.ErrorMsg("Not inside a git repository")
+		return 1
+	}
+
+	sub := args[0]
+	rest := args[1:]
+
+	switch sub {
+	case "info":
+		return ghcmd.RunInfo(repoPath)
+	case "open":
+		return ghcmd.RunOpen(repoPath)
+	case "prs":
+		fs := flag.NewFlagSet("prs", flag.ExitOnError)
+		limit := fs.Int("limit", 50, "Max PRs to fetch")
+		state := fs.String("state", "open", "State: open|closed|merged|all")
+		draft := fs.String("draft", "all", "Draft filter: all|only|exclude")
+		needReview := fs.Bool("need-review", false, "Only PRs needing review")
+		requireChanges := fs.Bool("require-changes", false, "Only PRs with changes requested")
+		openNum := fs.Int("open", 0, "Open PR number in browser")
+		fs.Parse(rest)
+		return ghcmd.RunPRs(repoPath, *limit, *state, *draft, *needReview, *requireChanges, *openNum)
+	default:
+		ui.ErrorMsg("Unknown gh subcommand: " + sub)
+		return 1
+	}
+}
+
+func runClone(args []string) int {
+	fs := flag.NewFlagSet("clone", flag.ExitOnError)
+	baseDir := fs.String("base-dir", "~/Neoware", "Base directory for cloned repos")
+	limit := fs.Int("limit", 1000, "Max repos to fetch")
+	filterForks := fs.Bool("filter-forks", false, "Skip forked repositories")
+	onlyStars := fs.Int("only-stars", 0, "Only repos with at least N stars")
+	exclude := fs.String("exclude", "", "Comma-separated name patterns to exclude")
+	fs.Parse(args)
+
+	var excludePatterns []string
+	if *exclude != "" {
+		excludePatterns = strings.Split(*exclude, ",")
+	}
+
+	return clone.Run(clone.Options{
+		BaseDir:     config.ExpandPath(*baseDir),
+		Limit:       *limit,
+		FilterForks: *filterForks,
+		OnlyStars:   *onlyStars,
+		Exclude:     excludePatterns,
+	})
 }
