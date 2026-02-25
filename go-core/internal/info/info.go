@@ -16,26 +16,44 @@ import (
 
 // RepoInfo holds all repository information
 type RepoInfo struct {
-	Name        string            `json:"name"`
-	Path        string            `json:"path"`
-	Branch      string            `json:"branch"`
-	Head        string            `json:"head"`
-	HeadRefs    string            `json:"head_refs"`
-	Remote      string            `json:"remote,omitempty"`
-	Commits     int               `json:"commits"`
-	Branches    int               `json:"branches"`
-	Tags        int               `json:"tags"`
-	Authors     []Author          `json:"authors"`
-	License     string            `json:"license,omitempty"`
-	Created     string            `json:"created"`
-	LastChange  string            `json:"last_change"`
-	TotalLOC    int               `json:"total_loc"`
-	Languages   map[string]int    `json:"languages"`
-	TopLanguage string            `json:"top_language"`
-	Size        string            `json:"size"`
-	FileCount   int               `json:"file_count"`
-	Version     string            `json:"version,omitempty"`
-	Pending     PendingChanges    `json:"pending"`
+	Name          string         `json:"name"`
+	Path          string         `json:"path"`
+	Branch        string         `json:"branch"`
+	Head          string         `json:"head"`
+	HeadRefs      string         `json:"head_refs"`
+	Remote        string         `json:"remote,omitempty"`
+	Commits       int            `json:"commits"`
+	Branches      int            `json:"branches"`
+	Tags          int            `json:"tags"`
+	Authors       []Author       `json:"authors"`
+	License       string         `json:"license,omitempty"`
+	Created       string         `json:"created"`
+	LastChange    string         `json:"last_change"`
+	TotalLOC      int            `json:"total_loc"`
+	Languages     map[string]int `json:"languages"`
+	TopLanguage   string         `json:"top_language"`
+	Size          string         `json:"size"`
+	FileCount     int            `json:"file_count"`
+	Version       string         `json:"version,omitempty"`
+	Pending       PendingChanges `json:"pending"`
+	Upstream      UpstreamStatus `json:"upstream"`
+	RecentCommits []CommitEntry  `json:"recent_commits"`
+	OpenPRs       int            `json:"open_prs"`
+	HasGH         bool           `json:"has_gh"`
+}
+
+// UpstreamStatus holds ahead/behind counts
+type UpstreamStatus struct {
+	Ahead  int `json:"ahead"`
+	Behind int `json:"behind"`
+}
+
+// CommitEntry is a short log entry
+type CommitEntry struct {
+	Hash    string `json:"hash"`
+	Subject string `json:"subject"`
+	When    string `json:"when"`
+	Author  string `json:"author"`
 }
 
 // Author represents a contributor
@@ -138,6 +156,9 @@ func GetInfo() (*RepoInfo, error) {
 	info.LastChange = getLastChangeRelative()
 	info.Version = getLatestVersion()
 	info.Pending = getPendingChanges()
+	info.Upstream = getUpstreamStatus()
+	info.RecentCommits = getRecentCommits(5)
+	info.HasGH, info.OpenPRs = getOpenPRs()
 
 	// Count lines of code
 	info.TotalLOC, info.Languages = countLinesOfCode(root)
@@ -549,4 +570,81 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func getUpstreamStatus() UpstreamStatus {
+	// Check if there's a tracking branch
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+	if err := cmd.Run(); err != nil {
+		return UpstreamStatus{}
+	}
+
+	cmd = exec.Command("git", "rev-list", "--left-right", "--count", "HEAD...@{u}")
+	out, err := cmd.Output()
+	if err != nil {
+		return UpstreamStatus{}
+	}
+
+	parts := strings.Fields(strings.TrimSpace(string(out)))
+	if len(parts) != 2 {
+		return UpstreamStatus{}
+	}
+
+	ahead, _ := strconv.Atoi(parts[0])
+	behind, _ := strconv.Atoi(parts[1])
+	return UpstreamStatus{Ahead: ahead, Behind: behind}
+}
+
+func getRecentCommits(n int) []CommitEntry {
+	// format: hash<TAB>subject<TAB>relative<TAB>author
+	format := "%h\t%s\t%ar\t%an"
+	cmd := exec.Command("git", "log", fmt.Sprintf("-n%d", n), "--pretty=format:"+format)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+
+	var entries []CommitEntry
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 4)
+		if len(parts) < 4 {
+			continue
+		}
+		subject := parts[1]
+		if len(subject) > 52 {
+			subject = subject[:49] + "..."
+		}
+		entries = append(entries, CommitEntry{
+			Hash:    parts[0],
+			Subject: subject,
+			When:    parts[2],
+			Author:  parts[3],
+		})
+	}
+	return entries
+}
+
+func getOpenPRs() (hasGH bool, count int) {
+	// check gh is available
+	if _, err := exec.LookPath("gh"); err != nil {
+		return false, 0
+	}
+	hasGH = true
+
+	cmd := exec.Command("gh", "pr", "list", "--state", "open", "--json", "number")
+	out, err := cmd.Output()
+	if err != nil {
+		return true, 0
+	}
+
+	// count JSON array items cheaply
+	text := strings.TrimSpace(string(out))
+	if text == "[]" || text == "" {
+		return true, 0
+	}
+	count = strings.Count(text, `"number"`)
+	return true, count
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/NoamFav/iskra/internal/info"
 	initcmd "github.com/NoamFav/iskra/internal/init"
 	"github.com/NoamFav/iskra/internal/processor"
+	"github.com/NoamFav/iskra/internal/pulse"
 	"github.com/NoamFav/iskra/internal/scanner"
 	"github.com/NoamFav/iskra/internal/ui"
 )
@@ -77,7 +78,7 @@ func main() {
 	case "status", "s":
 		exitCode = runStatus(cfgMgr, args, jsonOutput, quiet)
 	case "pulse", "p":
-		exitCode = runPulse(cfgMgr, args, jsonOutput, quiet)
+		exitCode = runPulseCmd(cfgMgr, args, jsonOutput, quiet)
 	case "scan":
 		exitCode = runScan(cfgMgr, args, jsonOutput)
 	case "init", "list", "ls", "add", "remove", "rm":
@@ -123,7 +124,8 @@ func printHelp() {
 	fmt.Println(ui.Bold("COMMANDS:"))
 	fmt.Println("    (default)     Commit and push all tracked repos")
 	fmt.Println("    status, s     Show status of all repos")
-	fmt.Println("    pulse, p      Process current repo only")
+	fmt.Println("    pulse, p      Mono-repo operations (commit, reset, switch, rebase, tag…)")
+	fmt.Println("                  Run 'iskra pulse help' for subcommands")
 	fmt.Println("    exec          Run command across all repos")
 	fmt.Println("    sync          Pull current repo")
 	fmt.Println("    sync-all      Pull all tracked repos")
@@ -303,6 +305,32 @@ func runStatus(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) in
 	}
 
 	return 0
+}
+
+// runPulseCmd is the dispatcher for "iskra pulse [subcommand]".
+// With no subcommand it runs the classic commit+push on the current repo.
+// With a subcommand (reset, switch, cherry-pick, rebase, tag, fixup, blame, filter)
+// it delegates to the pulse package.
+func runPulseCmd(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int {
+	// If first arg is a known pulse subcommand, dispatch to pulse package
+	if len(args) > 0 {
+		sub := args[0]
+		switch sub {
+		case "reset",
+			"switch", "sw",
+			"cherry-pick", "cp",
+			"rebase", "rb",
+			"tag",
+			"fixup",
+			"blame",
+			"filter",
+			"help", "-h", "--help":
+			return pulse.Dispatch(sub, args[1:])
+		}
+	}
+
+	// No subcommand (or flags only) — classic pulse behaviour
+	return runPulse(cfgMgr, args, jsonOutput, quiet)
 }
 
 func runPulse(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int {
