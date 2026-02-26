@@ -22,7 +22,9 @@ import (
 	"github.com/NoamFav/iskra/internal/ui"
 )
 
-var version = "2.0.0-go"
+// version is set at build time via -ldflags "-X main.version=..."
+// Falls back to "dev" for local builds without a tag.
+var version = "dev"
 
 func main() {
 	var (

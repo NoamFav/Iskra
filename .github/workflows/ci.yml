@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & vet
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go-core/go.mod
+          cache-dependency-path: go-core/go.sum
+
+      - name: Download dependencies
+        run: cd go-core && go mod download
+
+      - name: Vet
+        run: cd go-core && go vet ./...
+
+      - name: Build
+        run: |
+          cd go-core
+          go build -ldflags "-s -w -X main.version=ci" -o ../bin/iskra ./cmd/iskra/
+
+      - name: Smoke test
+        run: |
+          ./bin/iskra --version
+          ./bin/iskra --help

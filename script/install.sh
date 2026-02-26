@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 
 #==============================================================================
-# Iskra One-Command Installer
-# Usage: curl -fsSL https://your-domain.com/install.sh | bash
+# Iskra Installer
+# Usage: curl -fsSL https://raw.githubusercontent.com/NoamFav/Iskra/main/script/install.sh | bash
+#
+# Strategy:
+#   1. Try to download a pre-built binary from GitHub Releases (no Go needed)
+#   2. Fall back to building from source if Go 1.21+ is available
 #==============================================================================
 
 set -e
@@ -12,10 +16,10 @@ trap 'error_exit "Installation failed at line $LINENO"' ERR
 # Configuration
 #==============================================================================
 
-ISKRA_VERSION="2.0.0"
-INSTALL_DIR="$HOME/.iskra"
+REPO="NoamFav/Iskra"
 BIN_DIR="$HOME/.local/bin"
 CONFIG_DIR="$HOME/.config/iskra"
+TMP_DIR="$(mktemp -d)"
 
 # Colors
 RED='\033[0;31m'
@@ -28,183 +32,143 @@ DIM='\033[2m'
 RESET='\033[0m'
 
 #==============================================================================
-# Helper Functions
+# Helpers
 #==============================================================================
 
 print_header() {
-    clear
     echo -e "${CYAN}═══════════════════════════════════════════════════════════${RESET}"
-    echo -e "${BOLD}⚡ Iskra Installation${RESET}"
+    echo -e "${BOLD}⚡ Iskra Installer${RESET}"
     echo -e "${CYAN}═══════════════════════════════════════════════════════════${RESET}"
     echo -e "${DIM}Intelligent Git Automation${RESET}"
     echo ""
 }
 
-print_step() {
-    echo -e "${BLUE}→${RESET} ${BOLD}$1${RESET}"
-}
+print_step()    { echo -e "${BLUE}→${RESET} ${BOLD}$1${RESET}"; }
+print_success() { echo -e "${GREEN}✓${RESET} $1"; }
+print_error()   { echo -e "${RED}✗${RESET} $1" >&2; }
+print_warning() { echo -e "${YELLOW}⚠${RESET}  $1"; }
+print_info()    { echo -e "${CYAN}ℹ${RESET}  $1"; }
 
-print_success() {
-    echo -e "${GREEN}✓${RESET} $1"
-}
+check_command() { command -v "$1" >/dev/null 2>&1; }
 
-print_error() {
-    echo -e "${RED}✗${RESET} $1" >&2
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠${RESET}  $1"
-}
-
-print_info() {
-    echo -e "${CYAN}ℹ${RESET}  $1"
-}
+cleanup() { rm -rf "$TMP_DIR"; }
+trap cleanup EXIT
 
 error_exit() {
     print_error "$1"
     echo ""
-    print_info "Installation failed. Please check the error above."
-    print_info "For help: https://github.com/NoamFav/Iskra/issues"
+    print_info "For help: https://github.com/${REPO}/issues"
     exit 1
 }
 
-check_command() {
-    command -v "$1" >/dev/null 2>&1
-}
-
 #==============================================================================
-# System Detection
+# Platform Detection
 #==============================================================================
 
-detect_os() {
-    case "$OSTYPE" in
-        linux*)        echo "linux" ;;
-        darwin*)       echo "macos" ;;
-        msys*|cygwin*) echo "windows" ;;
-        *)             echo "unknown" ;;
+detect_platform() {
+    local os arch
+
+    case "$(uname -s)" in
+        Linux)  os="linux"  ;;
+        Darwin) os="macos"  ;;
+        *)      error_exit "Unsupported OS: $(uname -s)" ;;
     esac
-}
 
-detect_arch() {
-    local arch
-    arch=$(uname -m)
-    case "$arch" in
-        x86_64|amd64)  echo "amd64" ;;
-        aarch64|arm64) echo "arm64" ;;
-        *)             echo "unknown" ;;
+    case "$(uname -m)" in
+        x86_64|amd64)  arch="amd64" ;;
+        aarch64|arm64) arch="arm64" ;;
+        *)             error_exit "Unsupported architecture: $(uname -m)" ;;
     esac
+
+    echo "${os}-${arch}"
 }
 
 #==============================================================================
-# Dependency Checking
+# Strategy 1: Download pre-built binary
 #==============================================================================
 
-check_dependencies() {
-    print_step "Checking dependencies..."
-    echo ""
-
-    local missing=0
-
-    # Go 1.21+ is required
-    if check_command go; then
-        local go_version
-        go_version=$(go version | grep -oE '[0-9]+\.[0-9]+' | head -1)
-        local go_major go_minor
-        go_major=$(echo "$go_version" | cut -d. -f1)
-        go_minor=$(echo "$go_version" | cut -d. -f2)
-
-        if [ "$go_major" -ge 1 ] && [ "$go_minor" -ge 21 ]; then
-            print_success "Go ${go_version}"
-        else
-            print_error "Go 1.21+ required (found ${go_version})"
-            missing=1
-        fi
-    else
-        print_error "Go not found (required to build Iskra)"
-        print_info "Install from: https://golang.org/dl/"
-        missing=1
-    fi
-
-    # Git is required
-    if check_command git; then
-        local git_version
-        git_version=$(git --version | cut -d' ' -f3)
-        print_success "Git ${git_version}"
-    else
-        print_error "Git not found"
-        missing=1
-    fi
-
-    # gh CLI is optional but recommended
-    if check_command gh; then
-        local gh_version
-        gh_version=$(gh --version | head -1 | awk '{print $3}')
-        print_success "gh CLI ${gh_version}"
-    else
-        print_warning "gh CLI not found — 'iskra gh' and 'iskra clone' will be unavailable"
-        print_info "Install from: https://cli.github.com/"
-    fi
-
-    echo ""
-
-    if [ $missing -ne 0 ]; then
-        error_exit "Missing required dependencies. Please install Go 1.21+ and Git."
+get_latest_version() {
+    if check_command curl; then
+        curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+            2>/dev/null | grep '"tag_name"' | cut -d'"' -f4
+    elif check_command wget; then
+        wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" \
+            2>/dev/null | grep '"tag_name"' | cut -d'"' -f4
     fi
 }
 
+download_binary() {
+    local platform="$1"
+    local version="$2"
+    local archive="iskra-${version}-${platform}.tar.gz"
+    local url="https://github.com/${REPO}/releases/download/${version}/${archive}"
+
+    print_step "Downloading iskra ${version} for ${platform}..."
+
+    if check_command curl; then
+        curl -fsSL --progress-bar "$url" -o "${TMP_DIR}/${archive}" || return 1
+    elif check_command wget; then
+        wget -q --show-progress "$url" -O "${TMP_DIR}/${archive}" || return 1
+    else
+        return 1
+    fi
+
+    tar -xzf "${TMP_DIR}/${archive}" -C "${TMP_DIR}" || return 1
+
+    if [ ! -f "${TMP_DIR}/iskra" ]; then
+        return 1
+    fi
+
+    mkdir -p "$BIN_DIR"
+    mv "${TMP_DIR}/iskra" "$BIN_DIR/iskra"
+    chmod +x "$BIN_DIR/iskra"
+    print_success "Installed iskra ${version} → ${BIN_DIR}/iskra"
+    return 0
+}
+
 #==============================================================================
-# Copy Source Files
+# Strategy 2: Build from source
 #==============================================================================
 
-install_from_source() {
+check_go() {
+    if ! check_command go; then
+        return 1
+    fi
+    local ver major minor
+    ver=$(go version | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    major=$(echo "$ver" | cut -d. -f1)
+    minor=$(echo "$ver" | cut -d. -f2)
+    [ "$major" -ge 1 ] && [ "$minor" -ge 21 ]
+}
+
+build_from_source() {
+    # Must be run from the repo directory
     local repo_dir
     repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-    print_step "Installing from source: $repo_dir"
+    print_step "Building from source: ${repo_dir}"
 
-    mkdir -p "$INSTALL_DIR"
-
-    # Copy Go source
-    rsync -a --delete "$repo_dir/go-core/" "$INSTALL_DIR/go-core/"
-
-    print_success "Copied source files to $INSTALL_DIR"
-}
-
-#==============================================================================
-# Build Go Binary
-#==============================================================================
-
-build_go_binary() {
-    print_step "Building Go CLI binary..."
-
-    local src_dir="$INSTALL_DIR/go-core"
-
-    if [ ! -d "$src_dir" ]; then
-        error_exit "Go source not found at $src_dir"
+    if [ ! -d "${repo_dir}/go-core" ]; then
+        error_exit "go-core/ not found — run this script from the Iskra repo directory"
     fi
 
-    pushd "$src_dir" > /dev/null
+    local go_ver
+    go_ver=$(go version | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    print_success "Go ${go_ver}"
+
+    pushd "${repo_dir}/go-core" > /dev/null
     go mod download || error_exit "Failed to download Go dependencies"
-    mkdir -p "$INSTALL_DIR/bin"
-    go build -ldflags "-s -w" -o "$INSTALL_DIR/bin/iskra" ./cmd/iskra/ \
+
+    mkdir -p "$BIN_DIR"
+    go build \
+        -ldflags "-s -w -X main.version=$(git describe --tags --always 2>/dev/null || echo 'dev')" \
+        -o "$BIN_DIR/iskra" \
+        ./cmd/iskra/ \
         || error_exit "Go build failed"
     popd > /dev/null
 
-    print_success "Built Go binary → $INSTALL_DIR/bin/iskra"
-}
-
-#==============================================================================
-# Install Binaries
-#==============================================================================
-
-install_binaries() {
-    print_step "Installing binaries..."
-
-    mkdir -p "$BIN_DIR"
-
-    cp "$INSTALL_DIR/bin/iskra" "$BIN_DIR/iskra"
     chmod +x "$BIN_DIR/iskra"
-    print_success "iskra → $BIN_DIR/iskra"
+    print_success "Built from source → ${BIN_DIR}/iskra"
 }
 
 #==============================================================================
@@ -214,8 +178,7 @@ install_binaries() {
 setup_path() {
     print_step "Configuring PATH..."
 
-    local shell_rc=""
-    local shell_name
+    local shell_rc shell_name
     shell_name=$(basename "$SHELL")
 
     case "$shell_name" in
@@ -231,34 +194,43 @@ setup_path() {
     local path_line='export PATH="$HOME/.local/bin:$PATH"'
 
     if [ -f "$shell_rc" ]; then
-        if ! grep -q "$HOME/.local/bin" "$shell_rc" 2>/dev/null; then
+        if ! grep -q '\.local/bin' "$shell_rc" 2>/dev/null; then
             echo "" >> "$shell_rc"
             echo "# Added by Iskra installer" >> "$shell_rc"
             echo "$path_line" >> "$shell_rc"
-            print_success "Added PATH to $shell_rc"
+            print_success "Added ~/.local/bin to PATH in ${shell_rc}"
         else
-            print_info "PATH already configured in $shell_rc"
+            print_info "PATH already configured"
         fi
     else
-        print_warning "Could not find shell config file"
-        print_info "Add to your shell config: $path_line"
+        print_warning "Could not find shell config — add this manually:"
+        print_info "  ${path_line}"
     fi
 
     export PATH="$BIN_DIR:$PATH"
 }
 
 #==============================================================================
-# Initial Configuration
+# Config
 #==============================================================================
 
 initialize_config() {
-    print_step "Creating configuration..."
+    print_step "Creating default config..."
 
-    mkdir -p "$CONFIG_DIR/logs"
+    mkdir -p "$CONFIG_DIR"
 
     if [ ! -f "$CONFIG_DIR/config.yaml" ]; then
-        cat > "$CONFIG_DIR/config.yaml" << 'EOFCONFIG'
-base_dir: ~/Neoware
+        # Detect a sensible base_dir
+        local base_dir="$HOME"
+        for candidate in "$HOME/code" "$HOME/projects" "$HOME/dev" "$HOME/src"; do
+            if [ -d "$candidate" ]; then
+                base_dir="$candidate"
+                break
+            fi
+        done
+
+        cat > "$CONFIG_DIR/config.yaml" << EOFCONFIG
+base_dir: ${base_dir}
 config_dir: ~/.config/iskra
 max_depth: 3
 follow_symlinks: true
@@ -279,87 +251,78 @@ require_confirmation_for_protected: true
 dry_run: false
 show_diff: false
 verbose: false
-use_rich_ui: true
-skip_repos_without_changes: false
-skip_repos_ahead_of_remote: false
-handle_gitignore: false
-remove_ds_store: false
 EOFCONFIG
-        print_success "Configuration created at $CONFIG_DIR"
+        print_success "Config created at ${CONFIG_DIR}/config.yaml"
+        print_info "Edit base_dir to point to your code directory"
     else
-        print_info "Configuration already exists (skipped)"
+        print_info "Config already exists (skipped)"
     fi
 
     [ ! -f "$CONFIG_DIR/repos.json" ] && echo '{}' > "$CONFIG_DIR/repos.json"
 }
 
 #==============================================================================
-# Verification
+# Verify
 #==============================================================================
 
 verify_installation() {
-    print_step "Verifying installation..."
+    print_step "Verifying..."
     echo ""
 
-    if "$BIN_DIR/iskra" --version >/dev/null 2>&1; then
-        local ver
-        ver=$("$BIN_DIR/iskra" --version 2>&1 | head -1)
-        print_success "iskra: $ver"
-    else
-        print_error "iskra binary not working"
-        return 1
+    if ! "${BIN_DIR}/iskra" --version >/dev/null 2>&1; then
+        error_exit "iskra binary not working after install"
     fi
 
+    local ver
+    ver=$("${BIN_DIR}/iskra" --version 2>&1 | head -1)
+    print_success "${ver}"
     echo ""
 }
 
 #==============================================================================
-# Post-Install
+# Summary
 #==============================================================================
 
 show_next_steps() {
     echo ""
     echo -e "${GREEN}═══════════════════════════════════════════════════════════${RESET}"
-    echo -e "${BOLD}✨ Installation Complete! ✨${RESET}"
+    echo -e "${BOLD}✨ Iskra installed!${RESET}"
     echo -e "${GREEN}═══════════════════════════════════════════════════════════${RESET}"
     echo ""
-    echo -e "${BOLD}🚀 Quick Start:${RESET}"
+    echo -e "${BOLD}Getting started:${RESET}"
     echo ""
-    echo -e "  ${CYAN}1.${RESET} Restart your shell or run:"
+    echo -e "  ${CYAN}1.${RESET} Reload your shell:"
     echo -e "     ${DIM}source ~/.zshrc${RESET}  ${DIM}# or ~/.bashrc${RESET}"
     echo ""
-    echo -e "  ${CYAN}2.${RESET} Initialize Iskra (track your repos):"
+    echo -e "  ${CYAN}2.${RESET} Track your repos:"
     echo -e "     ${DIM}iskra init${RESET}"
     echo ""
-    echo -e "  ${CYAN}3.${RESET} Process all tracked repositories:"
+    echo -e "  ${CYAN}3.${RESET} Commit everything:"
     echo -e "     ${DIM}iskra${RESET}"
     echo ""
-    echo -e "${BOLD}📚 Documentation:${RESET}"
-    echo -e "  ${DIM}https://github.com/NoamFav/Iskra${RESET}"
+    echo -e "${BOLD}Commands:${RESET}"
     echo ""
-    echo -e "${BOLD}🛠  Useful Commands:${RESET}"
-    echo ""
-    echo -e "  ${CYAN}iskra${RESET}               Auto-commit all tracked repos"
-    echo -e "  ${CYAN}iskra status${RESET}        Check repository status"
-    echo -e "  ${CYAN}iskra pulse${RESET}         Operate on current repo only"
-    echo -e "  ${CYAN}iskra sync${RESET}          Pull + push tracked repos"
-    echo -e "  ${CYAN}iskra log${RESET}           Show git history"
-    echo -e "  ${CYAN}iskra info${RESET}          Show repo statistics"
-    echo -e "  ${CYAN}iskra gh info${RESET}       Show GitHub repo info"
-    echo -e "  ${CYAN}iskra clone${RESET}         Bulk-clone GitHub repos"
-    echo -e "  ${CYAN}iskra --dry-run${RESET}     Preview operations"
-    echo -e "  ${CYAN}iskra --help${RESET}        Show all options"
+    echo -e "  ${CYAN}iskra${RESET}                  Auto-commit all tracked repos"
+    echo -e "  ${CYAN}iskra status${RESET}           Status across all repos"
+    echo -e "  ${CYAN}iskra pulse${RESET}            Commit current repo"
+    echo -e "  ${CYAN}iskra pulse switch${RESET}     Switch branches"
+    echo -e "  ${CYAN}iskra pulse rebase${RESET}     Guided rebase"
+    echo -e "  ${CYAN}iskra info${RESET}             Rich repo stats"
+    echo -e "  ${CYAN}iskra gh prs${RESET}           List open PRs"
+    echo -e "  ${CYAN}iskra --help${RESET}           All commands"
     echo ""
 
     if ! check_command ollama; then
-        echo -e "${BOLD}🤖 Enable AI Commits:${RESET}"
-        echo -e "  ${DIM}https://ollama.ai${RESET}"
+        echo -e "${DIM}AI commits use Ollama (optional): https://ollama.ai${RESET}"
         echo ""
     fi
 
-    echo -e "${GREEN}═══════════════════════════════════════════════════════════${RESET}"
-    echo ""
-    echo -e "${DIM}Thank you for installing Iskra! ⚡${RESET}"
+    if ! check_command gh; then
+        echo -e "${DIM}GitHub features need gh CLI: https://cli.github.com${RESET}"
+        echo ""
+    fi
+
+    echo -e "${CYAN}https://github.com/${REPO}${RESET}"
     echo ""
 }
 
@@ -369,17 +332,64 @@ show_next_steps() {
 
 main() {
     if [ "$EUID" -eq 0 ]; then
-        error_exit "Please do not run this installer as root"
+        error_exit "Do not run as root"
     fi
 
     print_header
-    echo -e "${BOLD}Installing Iskra v${ISKRA_VERSION}${RESET}"
+
+    # Check git (always required)
+    if ! check_command git; then
+        error_exit "git is required but not found"
+    fi
+    print_success "git $(git --version | cut -d' ' -f3)"
+
+    # Optional: gh CLI
+    if check_command gh; then
+        print_success "gh $(gh --version | head -1 | awk '{print $3}')"
+    else
+        print_warning "gh CLI not found — iskra gh and iskra clone will be unavailable"
+    fi
     echo ""
 
-    check_dependencies
-    install_from_source
-    build_go_binary
-    install_binaries
+    local platform
+    platform=$(detect_platform)
+    print_info "Platform: ${platform}"
+    echo ""
+
+    # Try download first
+    local installed=false
+    local latest_version
+    latest_version=$(get_latest_version)
+
+    if [ -n "$latest_version" ]; then
+        if download_binary "$platform" "$latest_version"; then
+            installed=true
+        else
+            print_warning "Pre-built binary download failed — falling back to source build"
+            echo ""
+        fi
+    else
+        print_warning "Could not fetch latest release info — falling back to source build"
+        echo ""
+    fi
+
+    # Fall back to source build
+    if [ "$installed" = false ]; then
+        if check_go; then
+            go_ver=$(go version | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            print_success "Go ${go_ver} found"
+            build_from_source
+        else
+            echo ""
+            print_error "No pre-built binary available and Go 1.21+ not found"
+            echo ""
+            print_info "Options:"
+            print_info "  • Install Go: https://golang.org/dl/"
+            print_info "  • Download manually: https://github.com/${REPO}/releases"
+            exit 1
+        fi
+    fi
+
     setup_path
     initialize_config
     verify_installation
