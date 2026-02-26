@@ -27,7 +27,7 @@ jobs:
             goarch: arm64
           - os: macos
             arch: amd64
-            runner: macos-13
+            runner: macos-latest
             goos: darwin
             goarch: amd64
           - os: macos

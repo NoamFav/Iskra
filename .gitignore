@@ -3,7 +3,7 @@ bin/
 dist/
 *.exe
 *.out
-claude/
+.claude/
 # Python
 __pycache__/
 *.egg-info/
