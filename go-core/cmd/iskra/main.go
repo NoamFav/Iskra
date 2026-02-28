@@ -9,6 +9,7 @@ import (
 	"os"
 	osexec "os/exec"
 	"strings"
+	"time"
 
 	"github.com/NoamFav/iskra/internal/clone"
 	"github.com/NoamFav/iskra/internal/config"
@@ -236,10 +237,17 @@ func runCommit(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) in
 		fmt.Println()
 	}
 
-	result := proc.ProcessBatch(repos, opts)
+	start := time.Now()
+	var successCount, failCount int
 
-	for i, r := range result.Results {
+	for i, repoPath := range repos {
+		r := proc.ProcessRepo(repoPath, opts)
 		printRepoResult(r, i+1, len(repos), quiet)
+		if r.Status == "success" {
+			successCount++
+		} else {
+			failCount++
+		}
 	}
 
 	if !quiet {
@@ -249,10 +257,10 @@ func runCommit(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) in
 		} else if pullOnly {
 			operation = "PULL"
 		}
-		ui.Summary(operation, result.ReposTotal, result.ReposSuccess, result.ReposFailed, result.ElapsedMs)
+		ui.Summary(operation, len(repos), successCount, failCount, time.Since(start).Milliseconds())
 	}
 
-	if result.ReposFailed > 0 {
+	if failCount > 0 {
 		return 1
 	}
 	return 0
@@ -640,21 +648,25 @@ func runSyncAll(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) i
 		fmt.Println()
 	}
 
-	result := proc.ProcessBatch(repos, opts)
+	start := time.Now()
+	var successCount, failCount int
 
-	for _, r := range result.Results {
+	for _, repoPath := range repos {
+		r := proc.ProcessRepo(repoPath, opts)
 		if r.Status == "success" {
 			fmt.Printf("%s %s\n", ui.DotSuccess, r.Name)
+			successCount++
 		} else {
 			fmt.Printf("%s %s %s\n", ui.DotError, r.Name, ui.Err(r.Error))
+			failCount++
 		}
 	}
 
 	if !quiet {
-		ui.Summary("SYNC", result.ReposTotal, result.ReposSuccess, result.ReposFailed, result.ElapsedMs)
+		ui.Summary("SYNC", len(repos), successCount, failCount, time.Since(start).Milliseconds())
 	}
 
-	if result.ReposFailed > 0 {
+	if failCount > 0 {
 		return 1
 	}
 	return 0
