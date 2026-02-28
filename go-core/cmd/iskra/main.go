@@ -913,12 +913,6 @@ func runExec(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int 
 		Quiet:    quiet,
 	}
 
-	if !quiet {
-		ui.CompactHeader()
-		ui.InfoMsg(fmt.Sprintf("Running '%s' on %d repos", command, len(repos)))
-		fmt.Println()
-	}
-
 	result := exec.RunBatch(repos, command, opts)
 
 	if jsonOutput {
@@ -926,6 +920,12 @@ func runExec(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int 
 		enc.SetIndent("", "  ")
 		enc.Encode(result)
 		return 0
+	}
+
+	if !quiet {
+		ui.CompactHeader()
+		ui.InfoMsg(fmt.Sprintf("Running '%s' on %d repos", command, len(repos)))
+		fmt.Println()
 	}
 
 	// Print results
