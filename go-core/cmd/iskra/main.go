@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	osexec "os/exec"
 	"strings"
@@ -27,6 +28,98 @@ import (
 // Falls back to "dev" for local builds without a tag.
 var version = "dev"
 
+// splitArgs separates global flags from the subcommand and its args.
+// Scans ALL flags regardless of order — known global flags go to globalArgs,
+// unknown flags go to cmdArgs (treated as implicit commit flags).
+// Flags that consume a value (e.g. -m "msg") are forwarded with their value.
+func splitArgs(argv []string) (globalArgs []string, cmd string, cmdArgs []string) {
+	globalFlagNames := map[string]bool{
+		"version": true, "v": true, "help": true, "h": true,
+		"json": true, "minimal": true, "quiet": true, "q": true, "config": true,
+	}
+	// All flags (global or commit) that consume the next token as a value
+	flagsWithValue := map[string]bool{
+		"config":   true, // global
+		"m":        true, "message": true, // commit
+		"scan":     true, "only": true, "exclude": true, // commit filter
+	}
+
+	scanFlags := func(slice []string) (globals, rest []string) {
+		j := 0
+		for j < len(slice) {
+			a := slice[j]
+			if !strings.HasPrefix(a, "-") {
+				rest = append(rest, slice[j:]...)
+				return
+			}
+			n := strings.TrimLeft(a, "-")
+			hasInline := false
+			if eqIdx := strings.Index(n, "="); eqIdx >= 0 {
+				n = n[:eqIdx]
+				hasInline = true
+			}
+			if globalFlagNames[n] {
+				globals = append(globals, a)
+				if !hasInline && flagsWithValue[n] {
+					j++
+					if j < len(slice) {
+						globals = append(globals, slice[j])
+					}
+				}
+			} else {
+				rest = append(rest, a)
+				if !hasInline && flagsWithValue[n] {
+					j++
+					if j < len(slice) {
+						rest = append(rest, slice[j])
+					}
+				}
+			}
+			j++
+		}
+		return
+	}
+
+	i := 0
+	for i < len(argv) {
+		arg := argv[i]
+		if !strings.HasPrefix(arg, "-") {
+			// Subcommand found — scan remaining args for any global flags mixed in
+			cmd = arg
+			g, rest := scanFlags(argv[i+1:])
+			globalArgs = append(globalArgs, g...)
+			cmdArgs = rest
+			return
+		}
+		name := strings.TrimLeft(arg, "-")
+		hasInlineValue := false
+		if eqIdx := strings.Index(name, "="); eqIdx >= 0 {
+			name = name[:eqIdx]
+			hasInlineValue = true
+		}
+		if globalFlagNames[name] {
+			globalArgs = append(globalArgs, arg)
+			if !hasInlineValue && flagsWithValue[name] {
+				i++
+				if i < len(argv) {
+					globalArgs = append(globalArgs, argv[i])
+				}
+			}
+		} else {
+			// Unknown root flag → commit flag
+			cmdArgs = append(cmdArgs, arg)
+			if !hasInlineValue && flagsWithValue[name] {
+				i++
+				if i < len(argv) {
+					cmdArgs = append(cmdArgs, argv[i])
+				}
+			}
+		}
+		i++
+	}
+	return
+}
+
 func main() {
 	var (
 		showVersion bool
@@ -37,17 +130,20 @@ func main() {
 		configDir   string
 	)
 
-	flag.BoolVar(&showVersion, "version", false, "Show version")
-	flag.BoolVar(&showVersion, "v", false, "Show version")
-	flag.BoolVar(&showHelp, "help", false, "Show help")
-	flag.BoolVar(&showHelp, "h", false, "Show help")
-	flag.BoolVar(&jsonOutput, "json", false, "Output JSON")
-	flag.BoolVar(&minimal, "minimal", false, "Minimal output (no colors/icons)")
-	flag.BoolVar(&quiet, "quiet", false, "Quiet mode")
-	flag.BoolVar(&quiet, "q", false, "Quiet mode")
-	flag.StringVar(&configDir, "config", "", "Config directory")
+	globalArgs, cmd, cmdArgs := splitArgs(os.Args[1:])
 
-	flag.Parse()
+	fs := flag.NewFlagSet("iskra", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.BoolVar(&showVersion, "version", false, "")
+	fs.BoolVar(&showVersion, "v", false, "")
+	fs.BoolVar(&showHelp, "help", false, "")
+	fs.BoolVar(&showHelp, "h", false, "")
+	fs.BoolVar(&jsonOutput, "json", false, "")
+	fs.BoolVar(&minimal, "minimal", false, "")
+	fs.BoolVar(&quiet, "quiet", false, "")
+	fs.BoolVar(&quiet, "q", false, "")
+	fs.StringVar(&configDir, "config", "", "")
+	fs.Parse(globalArgs)
 
 	if showVersion {
 		fmt.Printf("iskra %s\n", version)
@@ -61,12 +157,7 @@ func main() {
 
 	ui.SetMinimalMode(minimal)
 
-	args := flag.Args()
-	cmd := ""
-	if len(args) > 0 {
-		cmd = args[0]
-		args = args[1:]
-	}
+	args := cmdArgs
 
 	cfgMgr, err := config.NewManager(configDir)
 	if err != nil {
@@ -95,7 +186,7 @@ func main() {
 	case "log":
 		exitCode = runLog(args)
 	case "info":
-		exitCode = runInfo(jsonOutput)
+		exitCode = runInfo(jsonOutput, args)
 	case "diff":
 		exitCode = runDiff(args)
 	case "branches", "br":
@@ -123,53 +214,326 @@ func printHelp() {
 	fmt.Println()
 	fmt.Println(ui.Bold("USAGE:"))
 	fmt.Println("    iskra [command] [flags]")
+	fmt.Println("    iskra [flags]           (defaults to commit)")
 	fmt.Println()
 	fmt.Println(ui.Bold("COMMANDS:"))
-	fmt.Println("    (default)     Commit and push all tracked repos")
+	fmt.Println("    commit        Commit and push all tracked repos  (default)")
 	fmt.Println("    status, s     Show status of all repos")
-	fmt.Println("    pulse, p      Mono-repo operations (commit, reset, switch, rebase, tag…)")
+	fmt.Println("    pulse, p      Mono-repo operations (reset, switch, rebase, tag…)")
 	fmt.Println("                  Run 'iskra pulse help' for subcommands")
-	fmt.Println("    exec          Run command across all repos")
+	fmt.Println("    exec          Run a command across all repos")
 	fmt.Println("    sync          Pull current repo")
 	fmt.Println("    sync-all      Pull all tracked repos")
 	fmt.Println("    scan          Scan directory for repos")
 	fmt.Println("    log           Show git log (pretty)")
-	fmt.Println("    info          Repository stats (like onefetch)")
+	fmt.Println("    info          Repository info (like onefetch)")
 	fmt.Println("    diff          Show git diff (colored)")
 	fmt.Println("    branches, br  List all branches")
 	fmt.Println("    stash         Stash management (list, push, pop)")
 	fmt.Println("    gh            GitHub integration (info, open, prs)")
 	fmt.Println("    clone         Bulk clone GitHub repositories")
 	fmt.Println("    init          Scan and track repositories")
-	fmt.Println("    list (ls)     List tracked repositories")
+	fmt.Println("    list, ls      List tracked repositories")
 	fmt.Println("    add           Add a repository to tracking")
-	fmt.Println("    remove (rm)   Remove a repository from tracking")
+	fmt.Println("    remove, rm    Remove a repository from tracking")
+	fmt.Println()
+	fmt.Println(ui.Bold("GLOBAL FLAGS:"))
+	fmt.Println("    -h, -help       Show help")
+	fmt.Println("    -v, -version    Show version")
+	fmt.Println("    -json           Output JSON")
+	fmt.Println("    -minimal        No colors or icons")
+	fmt.Println("    -q, -quiet      Quiet mode")
+	fmt.Println()
+	fmt.Println(ui.Bold("COMMIT FLAGS:") + ui.Mute("  (for 'iskra commit' or 'iskra' directly)"))
+	fmt.Println("    -status-only    Only show status")
+	fmt.Println("    -pull-only      Only pull")
+	fmt.Println("    -pull           Pull before commit")
+	fmt.Println("    -no-push        Don't push after commit")
+	fmt.Println("    -no-ai-commit   Don't use AI")
+	fmt.Println("    -m <message>    Custom commit message")
+	fmt.Println("    -dry-run        Preview without changes")
+	fmt.Println()
+	fmt.Println(ui.Bold("FILTER FLAGS:") + ui.Mute("  (for 'iskra commit' or 'iskra' directly)"))
+	fmt.Println("    -only <pattern>    Only include matching repos")
+	fmt.Println("    -exclude <pattern> Exclude matching repos")
+	fmt.Println("    -c, -has-changes   Only repos with changes")
+	fmt.Println()
+}
+
+func printCommitHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra commit") + " - Commit and push all tracked repos")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra [commit] [flags]")
 	fmt.Println()
 	fmt.Println(ui.Bold("FLAGS:"))
-	fmt.Println("    -h, --help      Show help")
-	fmt.Println("    -v, --version   Show version")
-	fmt.Println("    --json          Output JSON")
-	fmt.Println("    --minimal       No colors or icons")
-	fmt.Println("    -q, --quiet     Quiet mode")
-	fmt.Println()
-	fmt.Println(ui.Bold("COMMIT FLAGS:"))
-	fmt.Println("    --status-only   Only show status")
-	fmt.Println("    --pull-only     Only pull")
-	fmt.Println("    --pull          Pull before commit")
-	fmt.Println("    --no-push       Don't push after commit")
-	fmt.Println("    --no-ai-commit  Don't use AI")
-	fmt.Println("    -m, --message   Custom commit message")
-	fmt.Println("    --dry-run       Preview without changes")
+	fmt.Println("    -status-only    Only show status, no commits")
+	fmt.Println("    -pull-only      Only pull, no commits")
+	fmt.Println("    -pull           Pull before committing")
+	fmt.Println("    -no-push        Commit but don't push")
+	fmt.Println("    -no-ai-commit   Skip AI, use smart message instead")
+	fmt.Println("    -m <message>    Use a custom commit message")
+	fmt.Println("    -dry-run        Preview what would happen, no changes")
 	fmt.Println()
 	fmt.Println(ui.Bold("FILTER FLAGS:"))
-	fmt.Println("    --only PATTERN    Only include matching repos")
-	fmt.Println("    --exclude PATTERN Exclude matching repos")
-	fmt.Println("    -c, --has-changes Only repos with changes")
+	fmt.Println("    -only <pattern>    Only include repos matching pattern")
+	fmt.Println("    -exclude <pattern> Exclude repos matching pattern")
+	fmt.Println("    -c, -has-changes   Only process repos with changes")
+	fmt.Println()
+}
+
+func hasHelpFlag(args []string) bool {
+	for _, a := range args {
+		if a == "-h" || a == "-help" || a == "--help" {
+			return true
+		}
+	}
+	return false
+}
+
+func printStatusHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra status") + " - Show status of all tracked repos")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra status [flags]")
+	fmt.Println()
+	fmt.Println(ui.Bold("FLAGS:"))
+	fmt.Println("    -only <pattern>    Only include repos matching pattern")
+	fmt.Println("    -exclude <pattern> Exclude repos matching pattern")
+	fmt.Println()
+}
+
+func printPulseHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra pulse") + " - Mono-repo operations")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra pulse [subcommand] [flags]")
+	fmt.Println("    iskra pulse [flags]           (defaults to commit current repo)")
+	fmt.Println()
+	fmt.Println(ui.Bold("SUBCOMMANDS:"))
+	fmt.Println("    reset         Reset staged or unstaged changes")
+	fmt.Println("    switch, sw    Switch branches interactively")
+	fmt.Println("    cherry-pick, cp  Cherry-pick a commit")
+	fmt.Println("    rebase, rb    Interactive rebase helper")
+	fmt.Println("    tag           List, create, delete, push tags")
+	fmt.Println("    fixup         Fixup commit into an older one")
+	fmt.Println("    blame         Per-line author view")
+	fmt.Println("    filter        git filter-repo wrapper")
+	fmt.Println()
+	fmt.Println(ui.Bold("COMMIT FLAGS:") + ui.Mute("  (when no subcommand given)"))
+	fmt.Println("    -status-only    Only show status")
+	fmt.Println("    -pull           Pull before committing")
+	fmt.Println("    -no-push        Commit but don't push")
+	fmt.Println("    -no-ai-commit   Skip AI commit message")
+	fmt.Println("    -m <message>    Custom commit message")
+	fmt.Println("    -dry-run        Preview without changes")
+	fmt.Println()
+}
+
+func printScanHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra scan") + " - Scan directory for git repositories")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra scan [flags]")
+	fmt.Println()
+	fmt.Println(ui.Bold("FLAGS:"))
+	fmt.Println("    -dir <path>   Directory to scan (default: configured base dir)")
+	fmt.Println("    -depth <n>    Max depth to search (default: 3)")
+	fmt.Println()
+}
+
+func printInitHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra init") + " - Scan and track repositories")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra init [flags]")
+	fmt.Println("    iskra list, ls [-all]")
+	fmt.Println("    iskra add [path]")
+	fmt.Println("    iskra remove, rm [path]")
+	fmt.Println()
+	fmt.Println(ui.Bold("INIT FLAGS:"))
+	fmt.Println("    -base-dir <path>   Directory to scan for repos")
+	fmt.Println("    -y, -yes           Accept all defaults")
+	fmt.Println()
+	fmt.Println(ui.Bold("LIST FLAGS:"))
+	fmt.Println("    -all   Include inactive repos")
+	fmt.Println()
+}
+
+func printExecHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra exec") + " - Run a command across all tracked repos")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra exec [flags] <command>")
+	fmt.Println()
+	fmt.Println(ui.Bold("EXAMPLES:"))
+	fmt.Println("    iskra exec git fetch")
+	fmt.Println("    iskra exec -p 4 npm install")
+	fmt.Println()
+	fmt.Println(ui.Bold("FLAGS:"))
+	fmt.Println("    -p <n>             Parallel workers (default: 1)")
+	fmt.Println("    -fail-fast         Stop on first error")
+	fmt.Println("    -only <pattern>    Only include repos matching pattern")
+	fmt.Println("    -exclude <pattern> Exclude repos matching pattern")
+	fmt.Println()
+}
+
+func printSyncHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra sync") + " - Pull the current repository")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra sync")
+	fmt.Println()
+	fmt.Println("    Pulls the current git repo. No flags.")
+	fmt.Println("    For all tracked repos, use: iskra sync-all")
+	fmt.Println()
+}
+
+func printSyncAllHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra sync-all") + " - Pull all tracked repositories")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra sync-all [flags]")
+	fmt.Println()
+	fmt.Println(ui.Bold("FLAGS:"))
+	fmt.Println("    -only <pattern>    Only include repos matching pattern")
+	fmt.Println("    -exclude <pattern> Exclude repos matching pattern")
+	fmt.Println()
+}
+
+func printLogHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra log") + " - Show git log (pretty formatted)")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra log [flags]")
+	fmt.Println()
+	fmt.Println(ui.Bold("FLAGS:"))
+	fmt.Println("    -n <n>           Number of commits (default: 20)")
+	fmt.Println("    -oneline         One line per commit")
+	fmt.Println("    -graph           Show branch graph")
+	fmt.Println("    -all             Include all branches")
+	fmt.Println("    -author <name>   Filter by author")
+	fmt.Println("    -since <date>    Commits since date (e.g. 2024-01-01)")
+	fmt.Println("    -until <date>    Commits until date")
+	fmt.Println("    -grep <text>     Search commit messages")
+	fmt.Println()
+}
+
+func printDiffHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra diff") + " - Show git diff (colored)")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra diff [flags] [files...]")
+	fmt.Println()
+	fmt.Println(ui.Bold("FLAGS:"))
+	fmt.Println("    -staged, -cached   Show staged changes only")
+	fmt.Println("    -stat              Show diffstat summary only")
+	fmt.Println()
+}
+
+func printBranchesHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra branches") + " - List git branches")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra branches [flags]")
+	fmt.Println("    iskra br [flags]")
+	fmt.Println()
+	fmt.Println(ui.Bold("FLAGS:"))
+	fmt.Println("    -a, -all      Show all branches (local + remote)")
+	fmt.Println("    -r, -remote   Show only remote branches")
+	fmt.Println()
+}
+
+func printStashHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra stash") + " - Stash management")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra stash [subcommand] [args]")
+	fmt.Println()
+	fmt.Println(ui.Bold("SUBCOMMANDS:"))
+	fmt.Println("    list, ls          List all stashes  (default)")
+	fmt.Println("    push [message]    Stash current changes")
+	fmt.Println("    pop [stash@{n}]   Pop top stash (or specific)")
+	fmt.Println("    apply [stash@{n}] Apply stash without removing")
+	fmt.Println("    drop [stash@{n}]  Delete a stash entry")
+	fmt.Println("    show [stash@{n}]  Show stash diff")
+	fmt.Println("    clear             Delete all stashes")
+	fmt.Println()
+}
+
+func printGHHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra gh") + " - GitHub integration")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra gh <subcommand> [flags]")
+	fmt.Println()
+	fmt.Println(ui.Bold("SUBCOMMANDS:"))
+	fmt.Println("    info    Show GitHub info for current repo")
+	fmt.Println("    open    Open repo page in browser")
+	fmt.Println("    prs     List pull requests")
+	fmt.Println()
+	fmt.Println(ui.Bold("PRS FLAGS:"))
+	fmt.Println("    -limit <n>          Max PRs to fetch (default: 50)")
+	fmt.Println("    -state <s>          open|closed|merged|all (default: open)")
+	fmt.Println("    -draft <s>          all|only|exclude (default: all)")
+	fmt.Println("    -need-review        Only PRs awaiting review")
+	fmt.Println("    -require-changes    Only PRs with changes requested")
+	fmt.Println("    -open <n>           Open PR number in browser")
+	fmt.Println()
+}
+
+func printCloneHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra clone") + " - Bulk clone GitHub repositories")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra clone [flags]")
+	fmt.Println()
+	fmt.Println(ui.Bold("FLAGS:"))
+	fmt.Println("    -base-dir <path>   Where to clone repos (default: ~/Neoware)")
+	fmt.Println("    -limit <n>         Max repos to fetch (default: 1000)")
+	fmt.Println("    -filter-forks      Skip forked repositories")
+	fmt.Println("    -only-stars <n>    Only repos with at least N stars")
+	fmt.Println("    -exclude <list>    Comma-separated name patterns to exclude")
+	fmt.Println()
+}
+
+func printInfoHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra info") + " - Repository info panel")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra info")
+	fmt.Println()
+	fmt.Println("    Shows repo stats: branch, upstream, open PRs, recent commits.")
+	fmt.Println("    Must be run inside a git repository.")
+	fmt.Println("    Use -json for machine-readable output.")
 	fmt.Println()
 }
 
 func runCommit(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int {
-	fs := flag.NewFlagSet("commit", flag.ExitOnError)
+	for _, arg := range args {
+		if arg == "-h" || arg == "-help" || arg == "--help" {
+			printCommitHelp()
+			return 0
+		}
+	}
+
+	fs := flag.NewFlagSet("commit", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 
 	var (
 		statusOnly    bool
@@ -199,7 +563,11 @@ func runCommit(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) in
 	fs.StringVar(&only, "only", "", "Only pattern")
 	fs.StringVar(&exclude, "exclude", "", "Exclude pattern")
 
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "Unknown flag: %s\n", err)
+		printCommitHelp()
+		return 1
+	}
 
 	repos := getRepos(cfgMgr, scanDir, only, exclude)
 	if len(repos) == 0 {
@@ -267,6 +635,10 @@ func runCommit(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) in
 }
 
 func runStatus(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int {
+	if hasHelpFlag(args) {
+		printStatusHelp()
+		return 0
+	}
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
 	var only, exclude string
 	fs.StringVar(&only, "only", "", "Only pattern")
@@ -322,6 +694,10 @@ func runStatus(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) in
 // With a subcommand (reset, switch, cherry-pick, rebase, tag, fixup, blame, filter)
 // it delegates to the pulse package.
 func runPulseCmd(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int {
+	if hasHelpFlag(args) {
+		printPulseHelp()
+		return 0
+	}
 	// If first arg is a known pulse subcommand, dispatch to pulse package
 	if len(args) > 0 {
 		sub := args[0]
@@ -401,6 +777,10 @@ func runPulse(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int
 }
 
 func runScan(cfgMgr *config.Manager, args []string, jsonOutput bool) int {
+	if hasHelpFlag(args) {
+		printScanHelp()
+		return 0
+	}
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
 	var baseDir string
 	var maxDepth int
@@ -441,6 +821,10 @@ func runScan(cfgMgr *config.Manager, args []string, jsonOutput bool) int {
 }
 
 func runInit(cfgMgr *config.Manager, cmd string, args []string, jsonOutput bool) int {
+	if hasHelpFlag(args) {
+		printInitHelp()
+		return 0
+	}
 	switch cmd {
 	case "list", "ls":
 		fs := flag.NewFlagSet("list", flag.ExitOnError)
@@ -494,6 +878,10 @@ func runInit(cfgMgr *config.Manager, cmd string, args []string, jsonOutput bool)
 }
 
 func runExec(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int {
+	if hasHelpFlag(args) {
+		printExecHelp()
+		return 0
+	}
 	fs := flag.NewFlagSet("exec", flag.ExitOnError)
 	var parallel int
 	var failFast bool
@@ -576,6 +964,10 @@ func runExec(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int 
 }
 
 func runSync(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int {
+	if hasHelpFlag(args) {
+		printSyncHelp()
+		return 0
+	}
 	repo, err := scanner.GetCurrentRepo()
 	if err != nil || repo == nil {
 		ui.ErrorMsg("Not in a git repository")
@@ -618,6 +1010,10 @@ func runSync(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int 
 }
 
 func runSyncAll(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int {
+	if hasHelpFlag(args) {
+		printSyncAllHelp()
+		return 0
+	}
 	fs := flag.NewFlagSet("sync-all", flag.ExitOnError)
 	var only, exclude string
 	fs.StringVar(&only, "only", "", "Only pattern")
@@ -673,6 +1069,10 @@ func runSyncAll(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) i
 }
 
 func runLog(args []string) int {
+	if hasHelpFlag(args) {
+		printLogHelp()
+		return 0
+	}
 	fs := flag.NewFlagSet("log", flag.ExitOnError)
 	var n int
 	var oneline, graph, all bool
@@ -727,7 +1127,11 @@ func runLog(args []string) int {
 	return 0
 }
 
-func runInfo(jsonOutput bool) int {
+func runInfo(jsonOutput bool, args []string) int {
+	if hasHelpFlag(args) {
+		printInfoHelp()
+		return 0
+	}
 	repoInfo, err := info.GetInfo()
 	if err != nil {
 		ui.ErrorMsg(err.Error())
@@ -746,6 +1150,10 @@ func runInfo(jsonOutput bool) int {
 }
 
 func runDiff(args []string) int {
+	if hasHelpFlag(args) {
+		printDiffHelp()
+		return 0
+	}
 	fs := flag.NewFlagSet("diff", flag.ExitOnError)
 	var staged, cached bool
 	var stat bool
@@ -778,6 +1186,10 @@ func runDiff(args []string) int {
 }
 
 func runBranches(args []string) int {
+	if hasHelpFlag(args) {
+		printBranchesHelp()
+		return 0
+	}
 	fs := flag.NewFlagSet("branches", flag.ExitOnError)
 	var all, remote bool
 	fs.BoolVar(&all, "all", false, "Show all branches")
@@ -806,6 +1218,10 @@ func runBranches(args []string) int {
 }
 
 func runStash(args []string) int {
+	if hasHelpFlag(args) {
+		printStashHelp()
+		return 0
+	}
 	// Default to list if no subcommand
 	subCmd := "list"
 	if len(args) > 0 {
@@ -932,12 +1348,9 @@ func getRepos(cfgMgr *config.Manager, scanDir, only, exclude string) []string {
 }
 
 func runGH(args []string) int {
-	if len(args) == 0 {
-		fmt.Println("Usage: iskra gh <subcommand> [flags]")
-		fmt.Println("  info    Show GitHub info for current repo")
-		fmt.Println("  open    Open GitHub repo page in browser")
-		fmt.Println("  prs     List pull requests")
-		return 1
+	if len(args) == 0 || hasHelpFlag(args) {
+		printGHHelp()
+		return 0
 	}
 
 	repoPath := ghcmd.GitRoot(".")
@@ -971,6 +1384,10 @@ func runGH(args []string) int {
 }
 
 func runClone(args []string) int {
+	if hasHelpFlag(args) {
+		printCloneHelp()
+		return 0
+	}
 	fs := flag.NewFlagSet("clone", flag.ExitOnError)
 	baseDir := fs.String("base-dir", "~/Neoware", "Base directory for cloned repos")
 	limit := fs.Int("limit", 1000, "Max repos to fetch")
