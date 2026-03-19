@@ -1,35 +1,41 @@
 #!/bin/bash
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="${1:-$(git describe --tags --abbrev=0 2>/dev/null || echo "dev")}"
 PLATFORMS=("linux-amd64" "linux-arm64" "macos-amd64" "macos-arm64")
 
+echo "Building Iskra $VERSION..."
 mkdir -p releases
 
 for platform in "${PLATFORMS[@]}"; do
-    echo "Building $platform..."
+    echo "  Building $platform..."
 
     release_dir="releases/iskra-${VERSION}-${platform}"
     rm -rf "$release_dir"
-    mkdir -p "$release_dir/lib" "$release_dir/bin"
-
-    # Copy Python library
-    cp -r src/iskra "$release_dir/lib/"
+    mkdir -p "$release_dir"
 
     OS="${platform%%-*}"
     ARCH="${platform##*-}"
 
-    # Go uses 'darwin' for macOS
-    if [[ "$OS" == "macos" ]]; then
-        GOOS="darwin"
-    else
-        GOOS="$OS"
-    fi
+    case "$OS" in
+        macos) GOOS="darwin" ;;
+        *)     GOOS="$OS" ;;
+    esac
+
+    case "$ARCH" in
+        amd64) GOARCH="amd64" ;;
+        arm64) GOARCH="arm64" ;;
+    esac
 
     (
-        cd gocli
-        GOOS="$GOOS" GOARCH="$ARCH" go build -o "../$release_dir/bin/ai_commit" ./cmd/iskra
+        cd go-core
+        GOOS="$GOOS" GOARCH="$GOARCH" go build \
+            -ldflags="-s -w -X main.Version=${VERSION}" \
+            -o "../$release_dir/iskra" \
+            ./cmd/iskra/
     )
+
+    cp script/install.sh "$release_dir/"
 
     (
         cd releases
@@ -37,5 +43,9 @@ for platform in "${PLATFORMS[@]}"; do
         rm -rf "iskra-${VERSION}-${platform}"
     )
 
-    echo "✓ Built $platform"
+    echo "  ✓ $platform"
 done
+
+echo ""
+echo "Release artifacts:"
+ls -lh releases/*.tar.gz

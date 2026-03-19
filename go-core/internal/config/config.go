@@ -101,7 +101,7 @@ type Manager struct {
 // DefaultGlobalConfig returns sensible defaults
 func DefaultGlobalConfig() *GlobalConfig {
 	return &GlobalConfig{
-		BaseDir:                      "~/Neoware",
+		BaseDir:                      "~/projects",
 		ConfigDir:                    "~/.config/iskra",
 		MaxDepth:                     3,
 		FollowSymlinks:               true,
@@ -116,7 +116,7 @@ func DefaultGlobalConfig() *GlobalConfig {
 		CommitMessageStyle:           "conventional",
 		AIProvider:                   "ollama",
 		OpenAIModel:                  "gpt-4o-mini",
-		ClaudeModel:                  "claude-sonnet-4-20250514",
+		ClaudeModel:                  "claude-sonnet-4-6",
 		RequireConfirmation:          true,
 		RequireConfirmationProtected: true,
 		DryRun:                       false,

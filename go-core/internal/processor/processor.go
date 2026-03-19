@@ -21,8 +21,6 @@ type Options struct {
 	DryRun        bool   `json:"dry_run"`
 	ShowDiff      bool   `json:"show_diff"`
 	Compact       bool   `json:"compact"`
-	HandleGitignore bool `json:"handle_gitignore"`
-	RemoveDSStore   bool `json:"remove_ds_store"`
 }
 
 // RepoResult holds the result of processing a single repository

@@ -3,7 +3,7 @@
 <div align="center">
 
 <img src="https://img.shields.io/github/v/release/NoamFav/Iskra?style=for-the-badge&color=86CFAC" alt="Release">
-<img src="https://img.shields.io/badge/go-1.21+-00ADD8.svg?style=for-the-badge&logo=go" alt="Go">
+<img src="https://img.shields.io/badge/go-1.24+-00ADD8.svg?style=for-the-badge&logo=go" alt="Go">
 <img src="https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge" alt="License">
 <img src="https://img.shields.io/github/actions/workflow/status/NoamFav/Iskra/ci.yml?style=for-the-badge&label=CI" alt="CI">
 
@@ -36,12 +36,7 @@ iskra info       → rich repo stats (like onefetch)
 curl -fsSL https://raw.githubusercontent.com/NoamFav/Iskra/main/script/install.sh | bash
 ```
 
-**Homebrew** (coming soon):
-```bash
-brew install noamfav/tap/iskra
-```
-
-**From source** (requires Go 1.21+):
+**From source** (requires Go 1.24+):
 ```bash
 git clone https://github.com/NoamFav/Iskra
 cd Iskra && make install

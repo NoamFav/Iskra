@@ -249,7 +249,7 @@ func generateWithClaude(prompt string, cfg Config) Result {
 
 	model := cfg.ClaudeModel
 	if model == "" {
-		model = "claude-sonnet-4-20250514"
+		model = "claude-sonnet-4-6"
 	}
 
 	reqBody := claudeRequest{

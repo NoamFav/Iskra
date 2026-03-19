@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -240,18 +241,7 @@ func GetAheadBehind(dir string) (ahead, behind int) {
 
 // Helper to parse int from string
 func parseInt(s string) (int, error) {
-	var n int
-	_, err := strings.NewReader(s).Read([]byte{})
-	if err != nil {
-		return 0, err
-	}
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return n, nil
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n, nil
+	return strconv.Atoi(strings.TrimSpace(s))
 }
 
 // GetRepoState returns full repository state

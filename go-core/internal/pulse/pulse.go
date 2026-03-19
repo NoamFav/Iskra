@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -1080,14 +1081,8 @@ func RunBlame(args []string) int {
 			_ = ts
 		}
 		if strings.HasPrefix(line, "committer-time ") {
-			// use committer-time for display
 			ts, _ := strconv.ParseInt(strings.TrimPrefix(line, "committer-time "), 10, 64)
-			t := fmt.Sprintf("%d-%02d-%02d",
-				1970+ts/31536000, // rough approximation for display
-				(ts%31536000)/2592000+1,
-				(ts%2592000)/86400+1,
-			)
-			cur.date = t
+			cur.date = time.Unix(ts, 0).UTC().Format("2006-01-02")
 		}
 		if strings.HasPrefix(line, "\t") {
 			cur.content = strings.TrimPrefix(line, "\t")
