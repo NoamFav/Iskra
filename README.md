@@ -80,40 +80,50 @@ Iskra remembers your repos in `~/.config/iskra/repos.json` and processes them ev
 ## Commands
 
 ```mermaid
-mindmap
-  root((iskra))
-    Multi-repo
-      status
-      sync-all
-      exec
-      scan
-    Tracking
-      init
-      list / ls
-      add
-      remove / rm
-    Single-repo
-      pulse
-        switch
-        rebase
-        reset
-        stash
-        tag
-        fixup
-        blame
-        cherry-pick
-        filter
-    GitHub
-      gh info
-      gh open
-      gh prs
-      clone
-    Inspection
-      log
-      diff
-      info
-      branches / br
-      stash
+graph LR
+    root(("⚡ iskra")):::root
+
+    root --> MR["🗂 Multi-repo"]:::group
+    root --> TR["📌 Tracking"]:::group
+    root --> SR["📦 Single-repo"]:::group
+    root --> GH["🐙 GitHub"]:::group
+    root --> IN["🔍 Inspection"]:::group
+
+    MR --> mr1[status]:::cmd
+    MR --> mr2[sync-all]:::cmd
+    MR --> mr3[exec]:::cmd
+    MR --> mr4[scan]:::cmd
+
+    TR --> tr1[init]:::cmd
+    TR --> tr2[list / ls]:::cmd
+    TR --> tr3[add]:::cmd
+    TR --> tr4[remove / rm]:::cmd
+
+    SR --> pulse["pulse"]:::sub
+    pulse --> p1[switch]:::cmd
+    pulse --> p2[rebase]:::cmd
+    pulse --> p3[reset]:::cmd
+    pulse --> p4[stash]:::cmd
+    pulse --> p5[tag]:::cmd
+    pulse --> p6[fixup]:::cmd
+    pulse --> p7[blame]:::cmd
+    pulse --> p8[cherry-pick]:::cmd
+
+    GH --> gh1[gh info]:::cmd
+    GH --> gh2[gh open]:::cmd
+    GH --> gh3[gh prs]:::cmd
+    GH --> gh4[clone]:::cmd
+
+    IN --> in1[log]:::cmd
+    IN --> in2[diff]:::cmd
+    IN --> in3[info]:::cmd
+    IN --> in4[branches]:::cmd
+    IN --> in5[stash]:::cmd
+
+    classDef root fill:#86CFAC,color:#000,font-weight:bold,stroke:#86CFAC
+    classDef group fill:#2d333b,color:#cdd9e5,font-weight:bold,stroke:#444c56
+    classDef sub fill:#388bfd,color:#fff,font-weight:bold,stroke:#388bfd
+    classDef cmd fill:#1c2128,color:#adbac7,stroke:#373e47
 ```
 
 ### Multi-repo
