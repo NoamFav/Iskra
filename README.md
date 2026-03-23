@@ -7,6 +7,8 @@
 <img src="https://img.shields.io/badge/license-Apache%202.0-green.svg?style=for-the-badge" alt="License">
 <img src="https://img.shields.io/github/actions/workflow/status/NoamFav/Iskra/ci.yml?style=for-the-badge&label=CI" alt="CI">
 
+<br><br>
+
 **Git automation for people who manage a lot of repos**
 
 [Install](#installation) · [Quick Start](#quick-start) · [Commands](#commands) · [Configuration](#configuration)
@@ -17,13 +19,22 @@
 
 Iskra is a single Go binary that handles the tedious parts of git across all your repositories at once — AI-powered commits, bulk sync, status overview — while also giving you a clean set of single-repo tools under `iskra pulse`.
 
-```
-iskra            → commit + push all tracked repos (AI messages)
-iskra status     → status across every repo at a glance
-iskra pulse      → commit/push current repo
-iskra pulse switch   → interactive branch picker
-iskra pulse rebase   → guided rebase with conflict hints
-iskra info       → rich repo stats (like onefetch)
+---
+
+## How it works
+
+```mermaid
+flowchart LR
+    A([iskra init]) --> B[(tracked repos)]
+    B --> C{iskra}
+    C --> D[diff each repo]
+    D --> E{has changes?}
+    E -- no --> F([skip])
+    E -- yes --> G{AI available?}
+    G -- yes --> H[generate message]
+    G -- no --> I[smart fallback]
+    H --> J([commit + push])
+    I --> J
 ```
 
 ---
@@ -44,7 +55,7 @@ cd Iskra && make install
 
 **Manual** — grab a tarball from [Releases](https://github.com/NoamFav/Iskra/releases), extract, and move `iskra` to somewhere on your `$PATH`.
 
-### Optional dependencies
+### Dependencies
 
 | Tool | Required for |
 |------|-------------|
@@ -57,28 +68,59 @@ cd Iskra && make install
 ## Quick Start
 
 ```bash
-# 1. Track your repos (scans a directory)
-iskra init
-
-# 2. See what's going on across all of them
-iskra status
-
-# 3. Commit and push everything
-iskra
+iskra init        # 1. scan a directory and track all repos found
+iskra status      # 2. see what's going on across all of them
+iskra             # 3. commit and push everything
 ```
 
-That's it. Iskra remembers your repos in `~/.config/iskra/repos.json` and processes them every time you run `iskra`.
+Iskra remembers your repos in `~/.config/iskra/repos.json` and processes them every time you run `iskra`.
 
 ---
 
 ## Commands
 
-### Multi-repo (operates on all tracked repos)
+```mermaid
+mindmap
+  root((iskra))
+    Multi-repo
+      status
+      sync-all
+      exec
+      scan
+    Tracking
+      init
+      list / ls
+      add
+      remove / rm
+    Single-repo
+      pulse
+        switch
+        rebase
+        reset
+        stash
+        tag
+        fixup
+        blame
+        cherry-pick
+        filter
+    GitHub
+      gh info
+      gh open
+      gh prs
+      clone
+    Inspection
+      log
+      diff
+      info
+      branches / br
+      stash
+```
+
+### Multi-repo
 
 ```bash
 iskra                        # Commit + push all repos (AI messages)
 iskra status                 # Status overview across all repos
-iskra sync                   # Pull current repo
 iskra sync-all               # Pull all tracked repos
 iskra exec "git fetch --all" # Run any command across all repos
 iskra scan [dir]             # Scan directory, show found repos
@@ -87,10 +129,10 @@ iskra scan [dir]             # Scan directory, show found repos
 ### Repo tracking
 
 ```bash
-iskra init [dir]   # Scan a directory and track all found git repos
-iskra list         # List tracked repos  (alias: iskra ls)
-iskra add [path]   # Add a repo to tracking
-iskra remove [path]# Remove a repo  (alias: iskra rm)
+iskra init [dir]    # Scan a directory and track all found git repos
+iskra list          # List tracked repos  (alias: iskra ls)
+iskra add [path]    # Add a repo to tracking
+iskra remove [path] # Remove a repo  (alias: iskra rm)
 ```
 
 ### Single-repo — `iskra pulse`
@@ -105,60 +147,61 @@ iskra pulse --pull           # Pull first, then commit + push
 iskra pulse --dry-run        # Preview, no changes
 ```
 
-#### `pulse` subcommands
+<details>
+<summary><b>pulse subcommands</b></summary>
 
 ```bash
-iskra pulse reset [file]          # Discard changes (staged, unstaged, or hard reset)
-iskra pulse switch [branch]       # Interactive branch picker / create / delete
-iskra pulse rebase [base]         # Guided rebase with conflict recovery hints
-iskra pulse cherry-pick [hash]    # Pick commits with interactive log view
-iskra pulse tag [name]            # Create, list, delete, push tags
-iskra pulse fixup [hash]          # Squash staged changes into a past commit
-iskra pulse blame <file>          # Per-line author view with color-coded authors
-iskra pulse filter --remove-path <path>  # Rewrite history (wraps git-filter-repo)
+iskra pulse reset [file]                 # Discard changes (staged, unstaged, or hard reset)
+iskra pulse switch [branch]             # Interactive branch picker / create / delete
+iskra pulse rebase [base]               # Guided rebase with conflict recovery hints
+iskra pulse cherry-pick [hash]          # Pick commits with interactive log view
+iskra pulse tag [name]                  # Create, list, delete, push tags
+iskra pulse fixup [hash]                # Squash staged changes into a past commit
+iskra pulse blame <file>                # Per-line author view with color-coded authors
+iskra pulse filter --remove-path <path> # Rewrite history (wraps git-filter-repo)
 ```
 
-Run `iskra pulse help` or `iskra pulse <subcommand> --help` for details.
+</details>
 
-### GitHub integration (requires `gh` CLI)
+### GitHub integration
 
-```bash
-iskra gh info          # Repo stats, stars, watchers, open issues
-iskra gh open          # Open repo in browser
-iskra gh prs           # List open pull requests
-iskra gh prs --open 42 # Open PR #42 in browser
-```
+> Requires the [`gh`](https://cli.github.com/) CLI.
 
 ```bash
-iskra clone [dir]      # Bulk-clone all your GitHub repos
+iskra gh info           # Repo stats, stars, watchers, open issues
+iskra gh open           # Open repo in browser
+iskra gh prs            # List open pull requests
+iskra gh prs --open 42  # Open PR #42 in browser
+
+iskra clone [dir]                        # Bulk-clone all your GitHub repos
 iskra clone --filter-forks --only-stars 5
 ```
 
 ### Inspection
 
 ```bash
-iskra log              # Pretty git log for current repo
-iskra diff             # Colored diff
-iskra info             # Rich repo stats (language breakdown, recent commits, upstream)
-iskra branches         # List all branches  (alias: iskra br)
-iskra stash            # Stash management (list / push / pop)
+iskra log       # Pretty git log for current repo
+iskra diff      # Colored diff
+iskra info      # Rich repo stats (language breakdown, recent commits, upstream)
+iskra branches  # List all branches  (alias: iskra br)
+iskra stash     # Stash management (list / push / pop)
 ```
 
 ---
 
 ## Flags
 
-```bash
-iskra [command] --dry-run       # Preview — no changes made
-iskra [command] --no-ai-commit  # Skip AI, prompt for message
-iskra [command] -m "message"    # Use this commit message
-iskra [command] --pull          # Pull before committing
-iskra [command] --no-push       # Commit but don't push
-iskra [command] --only a,b      # Filter to specific repos (by name)
-iskra [command] --json          # Output JSON
-iskra [command] --minimal       # No colors or icons (good for CI)
-iskra [command] -q              # Quiet mode
-```
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Preview — no changes made |
+| `--no-ai-commit` | Skip AI, prompt for message |
+| `-m "message"` | Use this commit message |
+| `--pull` | Pull before committing |
+| `--no-push` | Commit but don't push |
+| `--only a,b` | Filter to specific repos by name |
+| `--json` | Output JSON |
+| `--minimal` | No colors or icons (good for CI) |
+| `-q` | Quiet mode |
 
 ---
 
@@ -199,8 +242,6 @@ require_confirmation: true
 dry_run: false
 ```
 
-Tracked repos are stored in `~/.config/iskra/repos.json`.
-
 ### Per-repo overrides
 
 Drop a `.iskra.yaml` in any repo root to override global settings for that repo:
@@ -215,7 +256,7 @@ protected_branches: [main, develop, staging]
 
 ## AI Commit Messages
 
-Iskra generates [Conventional Commits](https://www.conventionalcommits.org/) from your diff.
+Iskra generates [Conventional Commits](https://www.conventionalcommits.org/) from your diff:
 
 ```
 feat(auth): add OAuth2 login flow
@@ -224,15 +265,13 @@ docs: update installation instructions
 refactor(db): simplify query builder
 ```
 
-**Providers:**
-
-| Provider | How to set up |
-|----------|--------------|
-| **Ollama** (default) | `brew install ollama && ollama pull mistral` |
+| Provider | Setup |
+|----------|-------|
+| **Ollama** (default, local) | `brew install ollama && ollama pull mistral` |
 | **OpenAI** | `export OPENAI_API_KEY=sk-...` |
 | **Claude** | `export ANTHROPIC_API_KEY=sk-ant-...` |
 
-If AI generation fails (Ollama not running, no key set, network error), Iskra falls back to a smart conventional message generated from the file diff — it never blocks you.
+If AI generation fails for any reason, Iskra falls back to a smart conventional message generated from the diff — it never blocks you.
 
 ---
 
@@ -256,12 +295,6 @@ The version string is injected from the git tag at build time via `-ldflags "-X 
 1. Fork → branch → commit (use `iskra pulse` 😄)
 2. Code is pure Go in `go-core/`. Follow standard Go conventions (`gofmt`, `go vet`).
 3. PRs welcome — check [open issues](https://github.com/NoamFav/Iskra/issues) for ideas.
-
-```bash
-# Development loop
-make build && iskra --version
-make lint
-```
 
 ---
 
