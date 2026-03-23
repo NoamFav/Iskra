@@ -4,7 +4,7 @@
 
 <img src="https://img.shields.io/github/v/release/NoamFav/Iskra?style=for-the-badge&color=86CFAC" alt="Release">
 <img src="https://img.shields.io/badge/go-1.24+-00ADD8.svg?style=for-the-badge&logo=go" alt="Go">
-<img src="https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge" alt="License">
+<img src="https://img.shields.io/badge/license-Apache%202.0-green.svg?style=for-the-badge" alt="License">
 <img src="https://img.shields.io/github/actions/workflow/status/NoamFav/Iskra/ci.yml?style=for-the-badge&label=CI" alt="CI">
 
 **Git automation for people who manage a lot of repos**
@@ -276,7 +276,7 @@ make lint
 
 ## License
 
-MIT — see [LICENSE.md](LICENSE.md).
+Apache 2.0 — see [LICENSE](LICENSE).
 
 ---
 
