@@ -150,14 +150,17 @@ func main() {
 		return
 	}
 
+	args := cmdArgs
+
 	if showHelp {
-		printHelp()
-		return
+		if cmd == "" {
+			printHelp()
+			return
+		}
+		args = append([]string{"-h"}, args...)
 	}
 
 	ui.SetMinimalMode(minimal)
-
-	args := cmdArgs
 
 	cfgMgr, err := config.NewManager(configDir)
 	if err != nil {
