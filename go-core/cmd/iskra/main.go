@@ -261,6 +261,8 @@ func printHelp() {
 	fmt.Println("    -exclude <pattern> Exclude matching repos")
 	fmt.Println("    -c, -has-changes   Only repos with changes")
 	fmt.Println()
+	fmt.Println(ui.Mute("  Run 'iskra <command> -h' for command-specific flags."))
+	fmt.Println()
 }
 
 func printCommitHelp() {
