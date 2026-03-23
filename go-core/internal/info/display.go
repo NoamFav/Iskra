@@ -11,13 +11,13 @@ import (
 )
 
 var (
-	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	greenStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
-	redStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	cyanStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
-	yellowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
-	boldStyle   = lipgloss.NewStyle().Bold(true)
-	boldCyan    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
+	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	greenStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
+	redStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	cyanStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
+	yellowStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
+	boldStyle    = lipgloss.NewStyle().Bold(true)
+	boldCyan     = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
 	magentaStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("213"))
 	orangeStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
 	borderColor  = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
@@ -256,7 +256,7 @@ func Display(info *RepoInfo) {
 
 	fmt.Println(emptyLine)
 
-	for i := 0; i < maxRows; i++ {
+	for i := range maxRows {
 		// Art side: pad to artWidth
 		artLine := art[i]
 		artPadded := artLine + strings.Repeat(" ", artWidth-len(artLine))

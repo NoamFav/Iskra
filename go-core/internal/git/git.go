@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -209,12 +210,7 @@ func CheckWouldConflictOnPull(dir string) bool {
 
 // IsProtectedBranch checks if branch is in protected list
 func IsProtectedBranch(branch string, protected []string) bool {
-	for _, p := range protected {
-		if branch == p {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(protected, branch)
 }
 
 // GetAheadBehind returns how many commits ahead/behind of remote
@@ -284,8 +280,8 @@ func ParseStatus(output string) []Status {
 	}
 
 	var statuses []Status
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		if len(line) < 4 {
 			continue
 		}

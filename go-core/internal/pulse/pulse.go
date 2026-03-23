@@ -179,7 +179,7 @@ func showPendingFiles() {
 		fmt.Println(dim.Render("  (no changes)"))
 		return
 	}
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if len(line) < 3 {
 			continue
 		}
@@ -316,7 +316,7 @@ func switchInteractive() int {
 	var locals, remotes []branchEntry
 	seen := make(map[string]bool)
 
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		parts := strings.SplitN(line, "|||", 4)
 		if len(parts) < 4 {
 			continue
@@ -513,7 +513,7 @@ func cherryPickInteractive() int {
 	}
 
 	var hashes []string
-	for _, tok := range strings.Fields(input) {
+	for tok := range strings.FieldsSeq(input) {
 		if n, err := strconv.Atoi(tok); err == nil {
 			if n >= 1 && n <= len(lines) {
 				// extract hash (first word)
@@ -787,7 +787,7 @@ func listTags() int {
 	}
 
 	var tags []tagEntry
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		parts := strings.SplitN(line, "|||", 4)
 		if len(parts) < 4 || parts[0] == "" {
 			continue
@@ -1051,8 +1051,8 @@ func RunBlame(args []string) int {
 	colorPalette := []lipgloss.Color{"82", "39", "213", "226", "196", "86", "214", "201"}
 	colorIdx := 0
 
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(out), "\n")
+	for line := range lines {
 		if len(line) == 0 {
 			continue
 		}
@@ -1067,25 +1067,25 @@ func RunBlame(args []string) int {
 				}
 			}
 		}
-		if strings.HasPrefix(line, "author ") {
-			cur.author = strings.TrimPrefix(line, "author ")
+		if after, ok := strings.CutPrefix(line, "author "); ok {
+			cur.author = after
 			if _, ok := authorColors[cur.author]; !ok {
 				authorColors[cur.author] = colorPalette[colorIdx%len(colorPalette)]
 				colorIdx++
 			}
 		}
-		if strings.HasPrefix(line, "author-time ") {
-			ts, _ := strconv.ParseInt(strings.TrimPrefix(line, "author-time "), 10, 64)
+		if after, ok := strings.CutPrefix(line, "author-time "); ok {
+			ts, _ := strconv.ParseInt(after, 10, 64)
 			// format as YYYY-MM-DD
 			cur.date = fmt.Sprintf("%d", ts) // will reformat below
 			_ = ts
 		}
-		if strings.HasPrefix(line, "committer-time ") {
-			ts, _ := strconv.ParseInt(strings.TrimPrefix(line, "committer-time "), 10, 64)
+		if after, ok := strings.CutPrefix(line, "committer-time "); ok {
+			ts, _ := strconv.ParseInt(after, 10, 64)
 			cur.date = time.Unix(ts, 0).UTC().Format("2006-01-02")
 		}
-		if strings.HasPrefix(line, "\t") {
-			cur.content = strings.TrimPrefix(line, "\t")
+		if after, ok := strings.CutPrefix(line, "\t"); ok {
+			cur.content = after
 			entries = append(entries, cur)
 			cur = blameEntry{}
 		}

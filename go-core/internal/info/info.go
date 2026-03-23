@@ -58,8 +58,8 @@ type CommitEntry struct {
 
 // Author represents a contributor
 type Author struct {
-	Name    string `json:"name"`
-	Commits int    `json:"commits"`
+	Name    string  `json:"name"`
+	Commits int     `json:"commits"`
 	Percent float64 `json:"percent"`
 }
 
@@ -291,7 +291,7 @@ func getAuthors(totalCommits int) []Author {
 	re := regexp.MustCompile(`^\s*(\d+)\s+(.+)$`)
 	var authors []Author
 
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		match := re.FindStringSubmatch(line)
 		if match != nil {
 			count, _ := strconv.Atoi(match[1])
@@ -454,7 +454,7 @@ func countLinesOfCode(root string) (int, map[string]int) {
 		return 0, byLang
 	}
 
-	for _, relPath := range strings.Split(string(out), "\n") {
+	for relPath := range strings.SplitSeq(string(out), "\n") {
 		relPath = strings.TrimSpace(relPath)
 		if relPath == "" {
 			continue
@@ -605,7 +605,7 @@ func getRecentCommits(n int) []CommitEntry {
 	}
 
 	var entries []CommitEntry
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if line == "" {
 			continue
 		}

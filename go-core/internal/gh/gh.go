@@ -36,8 +36,8 @@ func GithubSlug(remoteURL string) string {
 	}
 	url := strings.TrimRight(remoteURL, "/")
 	url = strings.TrimSuffix(url, ".git")
-	if strings.HasPrefix(url, "git@github.com:") {
-		return strings.TrimPrefix(url, "git@github.com:")
+	if after, ok := strings.CutPrefix(url, "git@github.com:"); ok {
+		return after
 	}
 	if idx := strings.Index(url, "github.com/"); idx >= 0 {
 		return url[idx+len("github.com/"):]
