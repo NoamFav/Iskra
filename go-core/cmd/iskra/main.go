@@ -644,11 +644,15 @@ func runStatus(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) in
 		printStatusHelp()
 		return 0
 	}
-	fs := flag.NewFlagSet("status", flag.ExitOnError)
+	fs := flag.NewFlagSet("status", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 	var only, exclude string
 	fs.StringVar(&only, "only", "", "Only pattern")
 	fs.StringVar(&exclude, "exclude", "", "Exclude pattern")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		printStatusHelp()
+		return 1
+	}
 
 	repos := getRepos(cfgMgr, "", only, exclude)
 
@@ -731,7 +735,8 @@ func runPulse(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int
 		return 1
 	}
 
-	fs := flag.NewFlagSet("pulse", flag.ExitOnError)
+	fs := flag.NewFlagSet("pulse", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 	var (
 		statusOnly    bool
 		pull          bool
@@ -748,7 +753,10 @@ func runPulse(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int
 	fs.StringVar(&commitMessage, "message", "", "Commit message")
 	fs.StringVar(&commitMessage, "m", "", "Commit message")
 	fs.BoolVar(&dryRun, "dry-run", false, "Dry run")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		printPulseHelp()
+		return 1
+	}
 
 	proc := processor.NewProcessor(cfgMgr)
 	opts := processor.Options{
@@ -786,12 +794,16 @@ func runScan(cfgMgr *config.Manager, args []string, jsonOutput bool) int {
 		printScanHelp()
 		return 0
 	}
-	fs := flag.NewFlagSet("scan", flag.ExitOnError)
+	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 	var baseDir string
 	var maxDepth int
 	fs.StringVar(&baseDir, "dir", "", "Base directory")
 	fs.IntVar(&maxDepth, "depth", 3, "Max depth")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		printScanHelp()
+		return 1
+	}
 
 	if baseDir == "" {
 		baseDir = config.ExpandPath(cfgMgr.GlobalConfig.BaseDir)
@@ -832,9 +844,13 @@ func runInit(cfgMgr *config.Manager, cmd string, args []string, jsonOutput bool)
 	}
 	switch cmd {
 	case "list", "ls":
-		fs := flag.NewFlagSet("list", flag.ExitOnError)
+		fs := flag.NewFlagSet("list", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
 		all := fs.Bool("all", false, "Include inactive repos")
-		fs.Parse(args)
+		if err := fs.Parse(args); err != nil {
+			printInitHelp()
+			return 1
+		}
 		if jsonOutput {
 			repos := cfgMgr.GetAllRepos()
 			enc := json.NewEncoder(os.Stdout)
@@ -845,8 +861,12 @@ func runInit(cfgMgr *config.Manager, cmd string, args []string, jsonOutput bool)
 		return initcmd.RunList(cfgMgr, *all)
 
 	case "add", "a":
-		fs := flag.NewFlagSet("add", flag.ExitOnError)
-		fs.Parse(args)
+		fs := flag.NewFlagSet("add", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		if err := fs.Parse(args); err != nil {
+			printInitHelp()
+			return 1
+		}
 		path := "."
 		if len(fs.Args()) > 0 {
 			path = fs.Args()[0]
@@ -854,8 +874,12 @@ func runInit(cfgMgr *config.Manager, cmd string, args []string, jsonOutput bool)
 		return initcmd.RunAdd(cfgMgr, path)
 
 	case "remove", "rm":
-		fs := flag.NewFlagSet("remove", flag.ExitOnError)
-		fs.Parse(args)
+		fs := flag.NewFlagSet("remove", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		if err := fs.Parse(args); err != nil {
+			printInitHelp()
+			return 1
+		}
 		path := "."
 		if len(fs.Args()) > 0 {
 			path = fs.Args()[0]
@@ -863,11 +887,15 @@ func runInit(cfgMgr *config.Manager, cmd string, args []string, jsonOutput bool)
 		return initcmd.RunRemove(cfgMgr, path)
 
 	default: // "init"
-		fs := flag.NewFlagSet("init", flag.ExitOnError)
+		fs := flag.NewFlagSet("init", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
 		baseDir := fs.String("base-dir", "", "Base directory to scan")
 		yes := fs.Bool("y", false, "Accept all defaults")
 		fs.BoolVar(yes, "yes", false, "Accept all defaults")
-		fs.Parse(args)
+		if err := fs.Parse(args); err != nil {
+			printInitHelp()
+			return 1
+		}
 		if jsonOutput {
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
@@ -887,7 +915,8 @@ func runExec(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int 
 		printExecHelp()
 		return 0
 	}
-	fs := flag.NewFlagSet("exec", flag.ExitOnError)
+	fs := flag.NewFlagSet("exec", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 	var parallel int
 	var failFast bool
 	var only, exclude string
@@ -895,7 +924,10 @@ func runExec(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int 
 	fs.BoolVar(&failFast, "fail-fast", false, "Stop on first error")
 	fs.StringVar(&only, "only", "", "Only pattern")
 	fs.StringVar(&exclude, "exclude", "", "Exclude pattern")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		printExecHelp()
+		return 1
+	}
 
 	remaining := fs.Args()
 	if len(remaining) == 0 {
@@ -1019,11 +1051,15 @@ func runSyncAll(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) i
 		printSyncAllHelp()
 		return 0
 	}
-	fs := flag.NewFlagSet("sync-all", flag.ExitOnError)
+	fs := flag.NewFlagSet("sync-all", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 	var only, exclude string
 	fs.StringVar(&only, "only", "", "Only pattern")
 	fs.StringVar(&exclude, "exclude", "", "Exclude pattern")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		printSyncAllHelp()
+		return 1
+	}
 
 	repos := getRepos(cfgMgr, "", only, exclude)
 
@@ -1078,7 +1114,8 @@ func runLog(args []string) int {
 		printLogHelp()
 		return 0
 	}
-	fs := flag.NewFlagSet("log", flag.ExitOnError)
+	fs := flag.NewFlagSet("log", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 	var n int
 	var oneline, graph, all bool
 	var author, since, until, grep string
@@ -1090,7 +1127,10 @@ func runLog(args []string) int {
 	fs.StringVar(&since, "since", "", "Since date")
 	fs.StringVar(&until, "until", "", "Until date")
 	fs.StringVar(&grep, "grep", "", "Search commits")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		printLogHelp()
+		return 1
+	}
 
 	// Build git log command
 	gitArgs := []string{"log", fmt.Sprintf("-n%d", n)}
@@ -1159,13 +1199,17 @@ func runDiff(args []string) int {
 		printDiffHelp()
 		return 0
 	}
-	fs := flag.NewFlagSet("diff", flag.ExitOnError)
+	fs := flag.NewFlagSet("diff", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 	var staged, cached bool
 	var stat bool
 	fs.BoolVar(&staged, "staged", false, "Show staged changes")
 	fs.BoolVar(&cached, "cached", false, "Show staged changes (alias)")
 	fs.BoolVar(&stat, "stat", false, "Show diffstat only")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		printDiffHelp()
+		return 1
+	}
 
 	gitArgs := []string{"diff", "--color=always"}
 
@@ -1195,13 +1239,17 @@ func runBranches(args []string) int {
 		printBranchesHelp()
 		return 0
 	}
-	fs := flag.NewFlagSet("branches", flag.ExitOnError)
+	fs := flag.NewFlagSet("branches", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 	var all, remote bool
 	fs.BoolVar(&all, "all", false, "Show all branches")
 	fs.BoolVar(&all, "a", false, "Show all branches")
 	fs.BoolVar(&remote, "remote", false, "Show only remote branches")
 	fs.BoolVar(&remote, "r", false, "Show only remote branches")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		printBranchesHelp()
+		return 1
+	}
 
 	gitArgs := []string{"branch", "-v", "--color=always"}
 
@@ -1373,14 +1421,18 @@ func runGH(args []string) int {
 	case "open":
 		return ghcmd.RunOpen(repoPath)
 	case "prs":
-		fs := flag.NewFlagSet("prs", flag.ExitOnError)
+		fs := flag.NewFlagSet("prs", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
 		limit := fs.Int("limit", 50, "Max PRs to fetch")
 		state := fs.String("state", "open", "State: open|closed|merged|all")
 		draft := fs.String("draft", "all", "Draft filter: all|only|exclude")
 		needReview := fs.Bool("need-review", false, "Only PRs needing review")
 		requireChanges := fs.Bool("require-changes", false, "Only PRs with changes requested")
 		openNum := fs.Int("open", 0, "Open PR number in browser")
-		fs.Parse(rest)
+		if err := fs.Parse(rest); err != nil {
+			printGHHelp()
+			return 1
+		}
 		return ghcmd.RunPRs(repoPath, *limit, *state, *draft, *needReview, *requireChanges, *openNum)
 	default:
 		ui.ErrorMsg("Unknown gh subcommand: " + sub)
@@ -1393,13 +1445,17 @@ func runClone(args []string) int {
 		printCloneHelp()
 		return 0
 	}
-	fs := flag.NewFlagSet("clone", flag.ExitOnError)
+	fs := flag.NewFlagSet("clone", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
 	baseDir := fs.String("base-dir", "~/Neoware", "Base directory for cloned repos")
 	limit := fs.Int("limit", 1000, "Max repos to fetch")
 	filterForks := fs.Bool("filter-forks", false, "Skip forked repositories")
 	onlyStars := fs.Int("only-stars", 0, "Only repos with at least N stars")
 	exclude := fs.String("exclude", "", "Comma-separated name patterns to exclude")
-	fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		printCloneHelp()
+		return 1
+	}
 
 	var excludePatterns []string
 	if *exclude != "" {
