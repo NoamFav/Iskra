@@ -4,6 +4,7 @@ package init
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -13,6 +14,18 @@ import (
 	"github.com/NoamFav/iskra/internal/scanner"
 	"github.com/NoamFav/iskra/internal/ui"
 )
+
+// tildeify replaces the home directory prefix with ~.
+func tildeify(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return path
+	}
+	if strings.HasPrefix(path, home) {
+		return "~" + path[len(home):]
+	}
+	return path
+}
 
 // RepoGitInfo gathers branch/remote/HEAD for a repo path.
 func RepoGitInfo(repoPath string) (branch, remoteURL, head string) {
@@ -37,7 +50,7 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 	}
 
 	ui.Header()
-	fmt.Printf("%s Scanning %s for git repositories...\n\n", ui.Icons.Folder, ui.Bold(base))
+	fmt.Printf("%s Scanning %s for git repositories...\n\n", ui.Icons.Folder, ui.Bold(tildeify(base)))
 
 	cfg := cfgMgr.GlobalConfig
 	results, err := scanner.FindGitRepos(scanner.Options{
@@ -53,7 +66,7 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 	}
 
 	if len(results) == 0 {
-		ui.WarningMsg("No git repositories found in " + base)
+		ui.WarningMsg("No git repositories found in " + tildeify(base))
 		return 0
 	}
 
@@ -103,7 +116,7 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 	}
 
 	fmt.Printf("\n%s Tracked %s repositories\n", ui.Icons.Success, ui.Bold(fmt.Sprintf("%d", added)))
-	fmt.Printf("%s Config: %s\n", ui.Inf(ui.Icons.Info), cfgMgr.ConfigDir)
+	fmt.Printf("%s Config: %s\n", ui.Inf(ui.Icons.Info), tildeify(cfgMgr.ConfigDir))
 	return 0
 }
 
@@ -134,8 +147,8 @@ func RunList(cfgMgr *config.Manager, all bool) int {
 		if len(r.Name) > maxName {
 			maxName = len(r.Name)
 		}
-		if len(r.Path) > maxPath {
-			maxPath = len(r.Path)
+		if len(tildeify(r.Path)) > maxPath {
+			maxPath = len(tildeify(r.Path))
 		}
 		if len(r.DefaultBranch) > maxBranch {
 			maxBranch = len(r.DefaultBranch)
@@ -156,7 +169,7 @@ func RunList(cfgMgr *config.Manager, all bool) int {
 	fmt.Printf("  %s\n", strings.Repeat("─", maxName+maxPath+maxBranch+20))
 
 	for _, r := range repos {
-		path := r.Path
+		path := tildeify(r.Path)
 		if len(path) > maxPath {
 			path = "…" + path[len(path)-maxPath+1:]
 		}
