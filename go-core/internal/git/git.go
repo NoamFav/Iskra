@@ -41,9 +41,6 @@ type RunResult struct {
 
 // run executes a git command in the given directory
 func run(dir string, args ...string) (string, error) {
-	if !dirExist(dir) {
-		return "skipped: dir not found", nil
-	}
 
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
@@ -315,15 +312,4 @@ func RunHookCommand(dir, command string) (int, string, string) {
 	}
 
 	return exitCode, stdout.String(), stderr.String()
-}
-
-func dirExist(path string) bool {
-	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		return false
-	}
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
 }
