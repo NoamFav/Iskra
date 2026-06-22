@@ -85,8 +85,8 @@ func RunOpen(repoPath string) int {
 	return 0
 }
 
-// RepoDescription fetches the GitHub description for a repo via gh CLI.
-// Returns empty string on any failure (not a GitHub repo, gh not installed, etc.).
+// RepoDescription fetches the GitHub description for a single repo via gh CLI.
+// Prefer FetchAllDescriptions for batch operations.
 func RepoDescription(remoteURL string) string {
 	slug := GithubSlug(remoteURL)
 	if slug == "" {
@@ -97,6 +97,37 @@ func RepoDescription(remoteURL string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// FetchAllDescriptions fetches all the authenticated user's repo descriptions
+// in a single gh call. Returns a map from repo name → description.
+func FetchAllDescriptions(limit int) map[string]string {
+	if limit <= 0 {
+		limit = 1000
+	}
+	out, err := exec.Command("gh", "repo", "list",
+		"--limit", fmt.Sprintf("%d", limit),
+		"--json", "name,description",
+	).Output()
+	if err != nil {
+		return nil
+	}
+
+	var repos []struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal(out, &repos); err != nil {
+		return nil
+	}
+
+	m := make(map[string]string, len(repos))
+	for _, r := range repos {
+		if r.Description != "" {
+			m[r.Name] = r.Description
+		}
+	}
+	return m
 }
 
 // PR holds fields from `gh pr list --json`.

@@ -241,30 +241,50 @@ func parseInt(s string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(s))
 }
 
-// GetRepoState returns full repository state
+// GetRepoState returns full repository state.
+// Uses `git status --porcelain=v1 -b` to get branch, ahead/behind, file
+// status, and conflicts in a single call. Only remote URL needs a second call.
 func GetRepoState(dir string) (*RepoState, error) {
 	name := filepath.Base(dir)
 
-	branch, err := GetCurrentBranch(dir)
+	// Single call: branch header + file statuses
+	raw, err := run(dir, "status", "--porcelain=v1", "-b")
 	if err != nil {
 		return nil, err
 	}
 
-	statusOutput, _ := GetStatusPorcelain(dir)
-	changesCount := 0
-	if statusOutput != "" {
-		changesCount = len(strings.Split(strings.TrimSpace(statusOutput), "\n"))
+	var branch string
+	var ahead, behind int
+	var statusLines []string
+	var conflicts []string
+
+	lines := strings.Split(raw, "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "## ") {
+			branch, ahead, behind = parseBranchHeader(line)
+			continue
+		}
+		if line == "" {
+			continue
+		}
+		statusLines = append(statusLines, line)
+		if len(line) >= 2 && line[0] == 'U' || line[1] == 'U' ||
+			(line[0] == 'A' && line[1] == 'A') ||
+			(line[0] == 'D' && line[1] == 'D') {
+			conflicts = append(conflicts, strings.TrimSpace(line[3:]))
+		}
 	}
 
+	statusOutput := strings.Join(statusLines, "\n")
+	changesCount := len(statusLines)
+
 	remoteURL, _ := GetRemoteURL(dir)
-	ahead, behind := GetAheadBehind(dir)
-	conflicts := CheckForConflicts(dir)
 
 	return &RepoState{
 		Path:         dir,
 		Name:         name,
 		Branch:       branch,
-		IsClean:      statusOutput == "",
+		IsClean:      changesCount == 0,
 		StatusOutput: statusOutput,
 		ChangesCount: changesCount,
 		Conflicts:    conflicts,
@@ -272,6 +292,40 @@ func GetRepoState(dir string) (*RepoState, error) {
 		Ahead:        ahead,
 		Behind:       behind,
 	}, nil
+}
+
+// parseBranchHeader parses the "## branch...tracking [ahead N, behind M]" line
+// from `git status --porcelain -b`.
+func parseBranchHeader(line string) (branch string, ahead, behind int) {
+	// "## main...origin/main [ahead 2, behind 1]"
+	// "## main...origin/main"
+	// "## HEAD (no branch)"
+	// "## main"
+	header := strings.TrimPrefix(line, "## ")
+
+	// Extract [ahead N, behind M] if present
+	if idx := strings.Index(header, " ["); idx >= 0 {
+		bracket := header[idx+2 : len(header)-1] // strip "[ ... ]"
+		header = header[:idx]
+		for _, part := range strings.Split(bracket, ", ") {
+			part = strings.TrimSpace(part)
+			if after, ok := strings.CutPrefix(part, "ahead "); ok {
+				ahead, _ = strconv.Atoi(after)
+			}
+			if after, ok := strings.CutPrefix(part, "behind "); ok {
+				behind, _ = strconv.Atoi(after)
+			}
+		}
+	}
+
+	// Extract branch name (before "..." tracking info)
+	if idx := strings.Index(header, "..."); idx >= 0 {
+		branch = header[:idx]
+	} else {
+		branch = header
+	}
+
+	return
 }
 
 // ParseStatus parses porcelain status output into Status structs

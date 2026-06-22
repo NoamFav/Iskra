@@ -95,16 +95,20 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 		}
 	}
 
+	// Fetch all GitHub descriptions in one call
+	descriptions := ghcmd.FetchAllDescriptions(0)
+
 	added := 0
 	for _, r := range results {
 		branch, remoteURL, head := RepoGitInfo(r.Path)
+		name := filepath.Base(r.Path)
 		info := &config.RepoInfo{
 			Path:          r.Path,
-			Name:          filepath.Base(r.Path),
+			Name:          name,
 			RemoteURL:     remoteURL,
 			DefaultBranch: branch,
 			LastCommit:    head,
-			Description:   ghcmd.RepoDescription(remoteURL),
+			Description:   descriptions[name],
 			Active:        true,
 		}
 		if cfgMgr.AddRepo(info) {
@@ -131,6 +135,9 @@ func RunVerify(cfgMgr *config.Manager) int {
 	}
 
 	fmt.Printf("%s Verifying %d tracked repositories...\n\n", ui.Icons.Info, len(repos))
+
+	// Fetch all GitHub descriptions in one call
+	descriptions := ghcmd.FetchAllDescriptions(0)
 
 	var updated, removed int
 
@@ -161,9 +168,8 @@ func RunVerify(cfgMgr *config.Manager) int {
 			changed = true
 		}
 
-		if repo.Description == "" && remoteURL != "" {
-			desc := ghcmd.RepoDescription(remoteURL)
-			if desc != "" {
+		if repo.Description == "" {
+			if desc := descriptions[repo.Name]; desc != "" {
 				repo.Description = desc
 				changed = true
 			}
