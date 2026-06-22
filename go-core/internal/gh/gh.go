@@ -85,6 +85,20 @@ func RunOpen(repoPath string) int {
 	return 0
 }
 
+// RepoDescription fetches the GitHub description for a repo via gh CLI.
+// Returns empty string on any failure (not a GitHub repo, gh not installed, etc.).
+func RepoDescription(remoteURL string) string {
+	slug := GithubSlug(remoteURL)
+	if slug == "" {
+		return ""
+	}
+	out, err := exec.Command("gh", "repo", "view", slug, "--json", "description", "-q", ".description").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 // PR holds fields from `gh pr list --json`.
 type PR struct {
 	Number         int    `json:"number"`

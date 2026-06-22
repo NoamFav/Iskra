@@ -45,9 +45,10 @@ type GlobalConfig struct {
 	WarnConflicts                bool `yaml:"warn_conflicts" json:"warn_conflicts"`
 
 	// Display settings
-	ShowDiff  bool `yaml:"show_diff" json:"show_diff"`
-	Verbose   bool `yaml:"verbose" json:"verbose"`
-	UseRichUI bool `yaml:"use_rich_ui" json:"use_rich_ui"`
+	ShowDiff         bool `yaml:"show_diff" json:"show_diff"`
+	Verbose          bool `yaml:"verbose" json:"verbose"`
+	UseRichUI        bool `yaml:"use_rich_ui" json:"use_rich_ui"`
+	ShowDescriptions bool `yaml:"show_descriptions" json:"show_descriptions"`
 
 	// Filtering
 	SkipReposWithoutChanges bool `yaml:"skip_repos_without_changes" json:"skip_repos_without_changes"`
@@ -66,6 +67,7 @@ type RepoInfo struct {
 	DefaultBranch string `json:"default_branch,omitempty"`
 	LastCommit    string `json:"last_commit,omitempty"`
 	LastUpdated   string `json:"last_updated,omitempty"`
+	Description   string `json:"description,omitempty"`
 	Active        bool   `json:"active"`
 }
 
@@ -125,6 +127,7 @@ func DefaultGlobalConfig() *GlobalConfig {
 		ShowDiff:                     false,
 		Verbose:                      false,
 		UseRichUI:                    true,
+		ShowDescriptions:             true,
 		SkipReposWithoutChanges:      false,
 		SkipReposAheadOfRemote:       false,
 		HandleGitignore:              false,

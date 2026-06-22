@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/NoamFav/iskra/internal/config"
+	ghcmd "github.com/NoamFav/iskra/internal/gh"
 	"github.com/NoamFav/iskra/internal/scanner"
 	"github.com/NoamFav/iskra/internal/ui"
 )
@@ -103,6 +104,7 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 			RemoteURL:     remoteURL,
 			DefaultBranch: branch,
 			LastCommit:    head,
+			Description:   ghcmd.RepoDescription(remoteURL),
 			Active:        true,
 		}
 		if cfgMgr.AddRepo(info) {
@@ -205,6 +207,7 @@ func RunAdd(cfgMgr *config.Manager, path string) int {
 		RemoteURL:     remoteURL,
 		DefaultBranch: branch,
 		LastCommit:    head,
+		Description:   ghcmd.RepoDescription(remoteURL),
 		Active:        true,
 	}
 

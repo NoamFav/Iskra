@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	osexec "os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -307,6 +308,9 @@ func printStatusHelp() {
 	fmt.Println(ui.Bold("FLAGS:"))
 	fmt.Println("    -only <pattern>    Only include repos matching pattern")
 	fmt.Println("    -exclude <pattern> Exclude repos matching pattern")
+	fmt.Println()
+	fmt.Println(ui.Mute("  Repos are grouped by parent directory."))
+	fmt.Println(ui.Mute("  Descriptions from GitHub shown when 'show_descriptions: true' in config."))
 	fmt.Println()
 }
 
@@ -671,30 +675,77 @@ func runStatus(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) in
 		ui.CompactHeader()
 	}
 
-	for _, repoPath := range repos {
-		result := proc.ProcessRepo(repoPath, opts)
+	showDesc := cfgMgr.GlobalConfig.ShowDescriptions
 
-		dot := ui.DotSuccess
-		if result.Status != "success" {
-			dot = ui.DotError
-		} else if result.Changes != nil && result.Changes.Total > 0 {
-			dot = ui.DotWarning
-		}
-
-		fmt.Printf("%s %s", dot, ui.Bold(result.Name))
-		fmt.Printf(" [%s]", ui.Mute(result.Branch))
-
-		if result.Changes != nil && result.Changes.Total > 0 {
-			fmt.Printf(" %s", ui.Warn(fmt.Sprintf("%d changes", result.Changes.Total)))
-		}
-
-		if result.IsProtected {
-			fmt.Printf(" %s", ui.Warn("protected"))
-		}
-
-		fmt.Println()
+	// Build a lookup from path → RepoInfo for descriptions
+	repoInfoMap := make(map[string]*config.RepoInfo)
+	for _, r := range cfgMgr.GetAllRepos() {
+		repoInfoMap[r.Path] = r
 	}
 
+	// Group repos by parent directory
+	type statusEntry struct {
+		path   string
+		result *processor.RepoResult
+		info   *config.RepoInfo
+	}
+
+	groups := make(map[string][]statusEntry)
+	var groupOrder []string
+	groupSeen := make(map[string]bool)
+
+	for _, repoPath := range repos {
+		result := proc.ProcessRepo(repoPath, opts)
+		parentDir := filepath.Base(filepath.Dir(repoPath))
+		if !groupSeen[parentDir] {
+			groupOrder = append(groupOrder, parentDir)
+			groupSeen[parentDir] = true
+		}
+		groups[parentDir] = append(groups[parentDir], statusEntry{
+			path:   repoPath,
+			result: result,
+			info:   repoInfoMap[repoPath],
+		})
+	}
+
+	for _, group := range groupOrder {
+		entries := groups[group]
+		fmt.Printf("\n%s %s\n", ui.Icons.Folder, ui.Bold(group))
+
+		for _, e := range entries {
+			r := e.result
+
+			dot := ui.DotSuccess
+			if r.Status != "success" {
+				dot = ui.DotError
+			} else if r.Changes != nil && r.Changes.Total > 0 {
+				dot = ui.DotWarning
+			}
+
+			fmt.Printf("  %s %s", dot, ui.Bold(r.Name))
+			fmt.Printf(" [%s]", ui.Mute(r.Branch))
+
+			if r.Changes != nil && r.Changes.Total > 0 {
+				fmt.Printf(" %s", ui.Warn(fmt.Sprintf("%d changes", r.Changes.Total)))
+			}
+
+			if r.IsProtected {
+				fmt.Printf(" %s", ui.Warn("protected"))
+			}
+
+			if showDesc && e.info != nil && e.info.Description != "" {
+				desc := e.info.Description
+				if len(desc) > 50 {
+					desc = desc[:47] + "..."
+				}
+				fmt.Printf(" %s", ui.Mute("— "+desc))
+			}
+
+			fmt.Println()
+		}
+	}
+
+	fmt.Println()
 	return 0
 }
 
