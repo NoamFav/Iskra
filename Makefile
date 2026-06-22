@@ -1,3 +1,4 @@
+.DEFAULT_GOAL := install
 .PHONY: build install clean release lint
 
 VERSION := $(shell git describe --tags --always 2>/dev/null || echo "dev")

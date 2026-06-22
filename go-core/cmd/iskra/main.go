@@ -10,6 +10,7 @@ import (
 	"os"
 	osexec "os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -690,66 +691,55 @@ func runStatus(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) in
 		repoInfoMap[r.Path] = r
 	}
 
-	// Group repos by parent directory
-	type statusEntry struct {
-		path   string
-		result *processor.RepoResult
-		info   *config.RepoInfo
-	}
+	// Sort repos by parent directory, then by name within each group
+	sort.Slice(repos, func(i, j int) bool {
+		pi := filepath.Dir(repos[i])
+		pj := filepath.Dir(repos[j])
+		if pi != pj {
+			return pi < pj
+		}
+		return filepath.Base(repos[i]) < filepath.Base(repos[j])
+	})
 
-	groups := make(map[string][]statusEntry)
-	var groupOrder []string
-	groupSeen := make(map[string]bool)
+	currentGroup := ""
 
 	for _, repoPath := range repos {
-		result := proc.ProcessRepo(repoPath, opts)
 		parentDir := filepath.Base(filepath.Dir(repoPath))
-		if !groupSeen[parentDir] {
-			groupOrder = append(groupOrder, parentDir)
-			groupSeen[parentDir] = true
+		if parentDir != currentGroup {
+			currentGroup = parentDir
+			fmt.Printf("\n%s %s\n", ui.Icons.Folder, ui.Bold(currentGroup))
 		}
-		groups[parentDir] = append(groups[parentDir], statusEntry{
-			path:   repoPath,
-			result: result,
-			info:   repoInfoMap[repoPath],
-		})
-	}
 
-	for _, group := range groupOrder {
-		entries := groups[group]
-		fmt.Printf("\n%s %s\n", ui.Icons.Folder, ui.Bold(group))
+		result := proc.ProcessRepo(repoPath, opts)
+		info := repoInfoMap[repoPath]
 
-		for _, e := range entries {
-			r := e.result
-
-			dot := ui.DotSuccess
-			if r.Status != "success" {
-				dot = ui.DotError
-			} else if r.Changes != nil && r.Changes.Total > 0 {
-				dot = ui.DotWarning
-			}
-
-			fmt.Printf("  %s %s", dot, ui.Bold(r.Name))
-			fmt.Printf(" [%s]", ui.Mute(r.Branch))
-
-			if r.Changes != nil && r.Changes.Total > 0 {
-				fmt.Printf(" %s", ui.Warn(fmt.Sprintf("%d changes", r.Changes.Total)))
-			}
-
-			if r.IsProtected {
-				fmt.Printf(" %s", ui.Warn("protected"))
-			}
-
-			if showDesc && e.info != nil && e.info.Description != "" {
-				desc := e.info.Description
-				if len(desc) > 50 {
-					desc = desc[:47] + "..."
-				}
-				fmt.Printf(" %s", ui.Mute("— "+desc))
-			}
-
-			fmt.Println()
+		dot := ui.DotSuccess
+		if result.Status != "success" {
+			dot = ui.DotError
+		} else if result.Changes != nil && result.Changes.Total > 0 {
+			dot = ui.DotWarning
 		}
+
+		fmt.Printf("  %s %s", dot, ui.Bold(result.Name))
+		fmt.Printf(" [%s]", ui.Mute(result.Branch))
+
+		if result.Changes != nil && result.Changes.Total > 0 {
+			fmt.Printf(" %s", ui.Warn(fmt.Sprintf("%d changes", result.Changes.Total)))
+		}
+
+		if result.IsProtected {
+			fmt.Printf(" %s", ui.Warn("protected"))
+		}
+
+		if showDesc && info != nil && info.Description != "" {
+			desc := info.Description
+			if len(desc) > 50 {
+				desc = desc[:47] + "..."
+			}
+			fmt.Printf(" %s", ui.Mute("— "+desc))
+		}
+
+		fmt.Println()
 	}
 
 	fmt.Println()
