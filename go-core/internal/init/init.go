@@ -122,6 +122,81 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 	return 0
 }
 
+// RunVerify checks all tracked repos for missing or stale info and fixes it in-place.
+func RunVerify(cfgMgr *config.Manager) int {
+	repos := cfgMgr.GetAllRepos()
+	if len(repos) == 0 {
+		ui.WarningMsg("No tracked repositories. Run 'iskra init' to scan.")
+		return 0
+	}
+
+	fmt.Printf("%s Verifying %d tracked repositories...\n\n", ui.Icons.Info, len(repos))
+
+	var updated, removed int
+
+	for _, repo := range repos {
+		// Check if the repo still exists on disk
+		if _, err := os.Stat(repo.Path); os.IsNotExist(err) {
+			fmt.Printf("  %s %s %s\n", ui.DotError, ui.Bold(repo.Name), ui.Err("path not found — removing"))
+			cfgMgr.RemoveRepo(repo.Path)
+			removed++
+			continue
+		}
+
+		branch, remoteURL, head := RepoGitInfo(repo.Path)
+		changed := false
+
+		if branch != "" && branch != repo.DefaultBranch {
+			repo.DefaultBranch = branch
+			changed = true
+		}
+
+		if remoteURL != "" && remoteURL != repo.RemoteURL {
+			repo.RemoteURL = remoteURL
+			changed = true
+		}
+
+		if head != "" && head != repo.LastCommit {
+			repo.LastCommit = head
+			changed = true
+		}
+
+		if repo.Description == "" && remoteURL != "" {
+			desc := ghcmd.RepoDescription(remoteURL)
+			if desc != "" {
+				repo.Description = desc
+				changed = true
+			}
+		}
+
+		if changed {
+			cfgMgr.AddRepo(repo)
+			updated++
+			fmt.Printf("  %s %s %s\n", ui.DotWarning, ui.Bold(repo.Name), ui.Mute("updated"))
+		} else {
+			fmt.Printf("  %s %s\n", ui.DotSuccess, repo.Name)
+		}
+	}
+
+	if err := cfgMgr.SaveRepos(); err != nil {
+		ui.ErrorMsg("Failed to save: " + err.Error())
+		return 1
+	}
+
+	fmt.Println()
+	if updated == 0 && removed == 0 {
+		ui.SuccessMsg("All repos up to date")
+	} else {
+		if updated > 0 {
+			fmt.Printf("%s Updated %d repo(s)\n", ui.Icons.Success, updated)
+		}
+		if removed > 0 {
+			fmt.Printf("%s Removed %d missing repo(s)\n", ui.Icons.Warning, removed)
+		}
+	}
+	return 0
+}
+
 // RunList prints all tracked repositories in a table.
 func RunList(cfgMgr *config.Manager, all bool) int {
 	var repos []*config.RepoInfo

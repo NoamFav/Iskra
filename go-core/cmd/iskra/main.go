@@ -179,7 +179,7 @@ func main() {
 		exitCode = runPulseCmd(cfgMgr, args, jsonOutput, quiet)
 	case "scan":
 		exitCode = runScan(cfgMgr, args, jsonOutput)
-	case "init", "list", "ls", "add", "remove", "rm":
+	case "init", "list", "ls", "add", "remove", "rm", "verify":
 		exitCode = runInit(cfgMgr, cmd, args, jsonOutput)
 	case "exec":
 		exitCode = runExec(cfgMgr, args, jsonOutput, quiet)
@@ -237,6 +237,7 @@ func printHelp() {
 	fmt.Println("    gh            GitHub integration (info, open, prs)")
 	fmt.Println("    clone         Bulk clone GitHub repositories")
 	fmt.Println("    init          Scan and track repositories")
+	fmt.Println("    verify        Check and fix tracked repo info")
 	fmt.Println("    list, ls      List tracked repositories")
 	fmt.Println("    add           Add a repository to tracking")
 	fmt.Println("    remove, rm    Remove a repository from tracking")
@@ -361,6 +362,7 @@ func printInitHelp() {
 	fmt.Println()
 	fmt.Println(ui.Bold("USAGE:"))
 	fmt.Println("    iskra init [flags]")
+	fmt.Println("    iskra verify")
 	fmt.Println("    iskra list, ls [-all]")
 	fmt.Println("    iskra add [path]")
 	fmt.Println("    iskra remove, rm [path]")
@@ -368,6 +370,11 @@ func printInitHelp() {
 	fmt.Println(ui.Bold("INIT FLAGS:"))
 	fmt.Println("    -base-dir <path>   Directory to scan for repos")
 	fmt.Println("    -y, -yes           Accept all defaults")
+	fmt.Println()
+	fmt.Println(ui.Bold("VERIFY:"))
+	fmt.Println("    Checks all tracked repos for missing or stale info")
+	fmt.Println("    (branch, remote, description) and fixes it in-place.")
+	fmt.Println("    Removes repos whose paths no longer exist.")
 	fmt.Println()
 	fmt.Println(ui.Bold("LIST FLAGS:"))
 	fmt.Println("    -all   Include inactive repos")
@@ -894,6 +901,9 @@ func runInit(cfgMgr *config.Manager, cmd string, args []string, jsonOutput bool)
 		return 0
 	}
 	switch cmd {
+	case "verify":
+		return initcmd.RunVerify(cfgMgr)
+
 	case "list", "ls":
 		fs := flag.NewFlagSet("list", flag.ContinueOnError)
 		fs.SetOutput(io.Discard)
