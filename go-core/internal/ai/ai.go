@@ -15,13 +15,13 @@ import (
 
 // Config holds AI provider configuration
 type Config struct {
-	Provider     string `json:"provider"`
-	OpenAIKey    string `json:"openai_api_key,omitempty"`
-	OpenAIModel  string `json:"openai_model"`
-	ClaudeKey    string `json:"claude_api_key,omitempty"`
-	ClaudeModel  string `json:"claude_model"`
-	OllamaURL    string `json:"ollama_url"`
-	OllamaModel  string `json:"ollama_model"`
+	Provider    string `json:"provider"`
+	OpenAIKey   string `json:"openai_api_key,omitempty"`
+	OpenAIModel string `json:"openai_model"`
+	ClaudeKey   string `json:"claude_api_key,omitempty"`
+	ClaudeModel string `json:"claude_model"`
+	OllamaURL   string `json:"ollama_url"`
+	OllamaModel string `json:"ollama_model"`
 }
 
 // Result holds the result of AI generation
@@ -100,7 +100,7 @@ func generateWithOllama(prompt string, cfg Config) Result {
 		model = os.Getenv("OLLAMA_MODEL")
 	}
 	if model == "" {
-		model = "mistral"
+		model = "gemma"
 	}
 
 	reqBody := ollamaRequest{
@@ -219,9 +219,9 @@ func generateWithOpenAI(prompt string, cfg Config) Result {
 
 // Claude types
 type claudeRequest struct {
-	Model     string           `json:"model"`
-	MaxTokens int              `json:"max_tokens"`
-	Messages  []claudeMessage  `json:"messages"`
+	Model     string          `json:"model"`
+	MaxTokens int             `json:"max_tokens"`
+	Messages  []claudeMessage `json:"messages"`
 }
 
 type claudeMessage struct {
