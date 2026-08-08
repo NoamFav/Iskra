@@ -1082,7 +1082,7 @@ func runSync(cfgMgr *config.Manager, args []string, jsonOutput, quiet bool) int 
 	if !quiet {
 		ui.RepoHeader(result.Name, result.Path, result.Branch, result.IsProtected, 1, 1)
 		for _, op := range result.Operations {
-			ui.Operation(op.Type, op.Success, op.Message)
+			ui.Operation(op.Type, op.Success, op.Message, op.Error)
 		}
 	}
 
@@ -1401,7 +1401,7 @@ func printRepoResult(result *processor.RepoResult, index, total int, quiet bool)
 	}
 
 	for _, op := range result.Operations {
-		ui.Operation(op.Type, op.Success, op.Message)
+		ui.Operation(op.Type, op.Success, op.Message, op.Error)
 	}
 
 	if result.Commit != nil {

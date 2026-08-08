@@ -95,6 +95,8 @@ func NewProcessor(cfgMgr *config.Manager) *Processor {
 		OpenAIModel: cfgMgr.GlobalConfig.OpenAIModel,
 		ClaudeKey:   cfgMgr.GlobalConfig.ClaudeAPIKey,
 		ClaudeModel: cfgMgr.GlobalConfig.ClaudeModel,
+		OllamaURL:   cfgMgr.GlobalConfig.OllamaURL,
+		OllamaModel: cfgMgr.GlobalConfig.OllamaModel,
 	}
 
 	return &Processor{
@@ -272,7 +274,12 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 			commitMsg = aiResult.Message
 			isAI = true
 		} else {
-			// Fallback to smart message
+			// Fallback to smart message, but surface why AI generation failed
+			result.Operations = append(result.Operations, Operation{
+				Type:    "ai_commit",
+				Success: false,
+				Error:   aiResult.Error,
+			})
 			commitMsg = ai.GenerateSmartCommitMessage(state.StatusOutput)
 		}
 	} else {

@@ -105,7 +105,7 @@ func ChangesTree(statusOutput string) {
 }
 
 // Operation prints an operation result
-func Operation(opType string, success bool, message string) {
+func Operation(opType string, success bool, message string, errMsg string) {
 	var icon string
 	if success {
 		icon = Icons.Success
@@ -117,6 +117,9 @@ func Operation(opType string, success bool, message string) {
 
 	if message != "" {
 		fmt.Printf(" %s", Mute(message))
+	}
+	if errMsg != "" {
+		fmt.Printf(" %s", Err(errMsg))
 	}
 	fmt.Println()
 }

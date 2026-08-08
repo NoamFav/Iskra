@@ -36,6 +36,8 @@ type GlobalConfig struct {
 	OpenAIModel        string `yaml:"openai_model" json:"openai_model"`
 	ClaudeAPIKey       string `yaml:"claude_api_key" json:"claude_api_key,omitempty"`
 	ClaudeModel        string `yaml:"claude_model" json:"claude_model"`
+	OllamaURL          string `yaml:"ollama_url" json:"ollama_url"`
+	OllamaModel        string `yaml:"ollama_model" json:"ollama_model"`
 
 	// Safety settings
 	RequireConfirmation          bool `yaml:"require_confirmation" json:"require_confirmation"`
