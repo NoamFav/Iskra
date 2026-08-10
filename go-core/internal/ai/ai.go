@@ -148,7 +148,7 @@ func generateWithOllama(prompt string, cfg Config) Result {
 		model = os.Getenv("OLLAMA_MODEL")
 	}
 	if model == "" {
-		model = "gemma"
+		model = "mistral"
 	}
 
 	reqBody := ollamaRequest{
@@ -322,7 +322,7 @@ func generateWithClaude(prompt string, cfg Config) Result {
 	req.Header.Set("x-api-key", apiKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: 120 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return Result{Success: false, Error: fmt.Sprintf("claude request failed: %v", err)}
