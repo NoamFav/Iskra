@@ -7,7 +7,7 @@ import (
 
 	"github.com/NoamFav/iskra/internal/ai"
 	"github.com/NoamFav/iskra/internal/config"
-	"github.com/NoamFav/iskra/internal/git"
+	"github.com/NoamFav/iskra/internal/remote"
 )
 
 // Options holds processing options (from CLI args)
@@ -133,7 +133,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 	}
 
 	// Get repo state
-	state, err := git.GetRepoState(repoPath)
+	state, err := remote.GetRepoState(repoPath)
 	if err != nil {
 		result.Status = "failed"
 		result.Error = err.Error()
@@ -153,7 +153,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 	cfg := p.ConfigManager.MergeConfig(repoPath)
 
 	// Check protected branch
-	result.IsProtected = git.IsProtectedBranch(state.Branch, cfg.ProtectedBranches)
+	result.IsProtected = remote.IsProtectedBranch(state.Branch, cfg.ProtectedBranches)
 
 	// Check for conflicts
 	if len(state.Conflicts) > 0 && cfg.WarnConflicts {
@@ -165,7 +165,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 	}
 
 	// Parse changes
-	statuses := git.ParseStatus(state.StatusOutput)
+	statuses := remote.ParseStatus(state.StatusOutput)
 	changes := &Changes{Total: len(statuses)}
 	for _, s := range statuses {
 		switch {
@@ -190,7 +190,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 		// Auto-stash if configured
 		var stashed bool
 		if cfg.AutoStash && state.ChangesCount > 0 {
-			stashResult := git.Stash(repoPath)
+			stashResult := remote.Stash(repoPath)
 			stashed = stashResult.Success
 			result.Operations = append(result.Operations, Operation{
 				Type:    "stash",
@@ -200,7 +200,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 		}
 
 		// Pull
-		pullResult := git.Pull(repoPath)
+		pullResult := remote.Pull(repoPath)
 		result.Operations = append(result.Operations, Operation{
 			Type:    "pull",
 			Success: pullResult.Success,
@@ -210,7 +210,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 
 		// Pop stash if we stashed
 		if stashed {
-			popResult := git.StashPop(repoPath)
+			popResult := remote.StashPop(repoPath)
 			result.Operations = append(result.Operations, Operation{
 				Type:    "stash_pop",
 				Success: popResult.Success,
@@ -219,7 +219,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 		}
 
 		// Refresh state after pull
-		state, _ = git.GetRepoState(repoPath)
+		state, _ = remote.GetRepoState(repoPath)
 	}
 
 	// Pull only mode - stop here
@@ -240,13 +240,13 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 	}
 
 	// No changes to commit
-	if !git.HasChanges(repoPath) {
+	if !remote.HasChanges(repoPath) {
 		result.ElapsedMs = time.Since(start).Milliseconds()
 		return result
 	}
 
 	// Stage all changes
-	addResult := git.AddAll(repoPath)
+	addResult := remote.AddAll(repoPath)
 	result.Operations = append(result.Operations, Operation{
 		Type:    "add",
 		Success: addResult.Success,
@@ -268,7 +268,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 		commitMsg = opts.CommitMessage
 	} else if !opts.NoAICommit && cfg.UseAICommit {
 		// Get diff for AI
-		diff, _ := git.GetDiff(repoPath, true)
+		diff, _ := remote.GetDiff(repoPath, true)
 		aiResult := ai.GenerateCommitMessage(diff, state.Branch, p.AIConfig)
 		if aiResult.Success {
 			commitMsg = aiResult.Message
@@ -287,7 +287,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 	}
 
 	// Commit
-	commitResult := git.Commit(repoPath, commitMsg)
+	commitResult := remote.Commit(repoPath, commitMsg)
 	result.Operations = append(result.Operations, Operation{
 		Type:    "commit",
 		Success: commitResult.Success,
@@ -301,7 +301,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 			IsAI:    isAI,
 		}
 		// Get commit hash
-		if lastCommit, err := git.GetLastCommit(repoPath); err == nil {
+		if lastCommit, err := remote.GetLastCommit(repoPath); err == nil {
 			parts := splitN(lastCommit, "|", 4)
 			if len(parts) > 0 {
 				result.Commit.Hash = parts[0]
@@ -316,7 +316,7 @@ func (p *Processor) ProcessRepo(repoPath string, opts Options) *RepoResult {
 
 	// Push
 	if !opts.NoPush && cfg.AutoPush {
-		pushResult := git.Push(repoPath)
+		pushResult := remote.Push(repoPath)
 		result.Operations = append(result.Operations, Operation{
 			Type:    "push",
 			Success: pushResult.Success,

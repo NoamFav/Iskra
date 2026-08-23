@@ -9,6 +9,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// HasHelpFlag reports whether args contains a help flag.
+func HasHelpFlag(args []string) bool {
+	for _, a := range args {
+		if a == "-h" || a == "-help" || a == "--help" {
+			return true
+		}
+	}
+	return false
+}
+
 // Header prints the Iskra header
 func Header() {
 	logo := `

@@ -1,6 +1,9 @@
-// Package git provides Git operations via exec commands.
-// We use exec instead of go-git for full git compatibility.
-package git
+// Package remote provides operations against git and its hosted
+// providers (GitHub via github.go, one file per provider).
+//
+// git.go: generic local git operations via exec commands (used by every
+// provider file). We use exec instead of go-git for full git compatibility.
+package remote
 
 import (
 	"bytes"

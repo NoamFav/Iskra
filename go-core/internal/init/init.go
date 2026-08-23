@@ -3,7 +3,10 @@
 package init
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,10 +14,113 @@ import (
 	"strings"
 
 	"github.com/NoamFav/iskra/internal/config"
-	ghcmd "github.com/NoamFav/iskra/internal/gh"
+	"github.com/NoamFav/iskra/internal/remote"
 	"github.com/NoamFav/iskra/internal/scanner"
 	"github.com/NoamFav/iskra/internal/ui"
 )
+
+// Dispatch routes "iskra init/list/ls/add/remove/rm/verify" to the right
+// handler, parsing each subcommand's own flags first.
+func Dispatch(cfgMgr *config.Manager, cmd string, args []string, jsonOutput bool) int {
+	if ui.HasHelpFlag(args) {
+		printInitHelp()
+		return 0
+	}
+	switch cmd {
+	case "verify":
+		return RunVerify(cfgMgr)
+
+	case "list", "ls":
+		fs := flag.NewFlagSet("list", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		all := fs.Bool("all", false, "Include inactive repos")
+		if err := fs.Parse(args); err != nil {
+			printInitHelp()
+			return 1
+		}
+		if jsonOutput {
+			repos := cfgMgr.GetAllRepos()
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			enc.Encode(repos)
+			return 0
+		}
+		return RunList(cfgMgr, *all)
+
+	case "add", "a":
+		fs := flag.NewFlagSet("add", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		if err := fs.Parse(args); err != nil {
+			printInitHelp()
+			return 1
+		}
+		path := "."
+		if len(fs.Args()) > 0 {
+			path = fs.Args()[0]
+		}
+		return RunAdd(cfgMgr, path)
+
+	case "remove", "rm":
+		fs := flag.NewFlagSet("remove", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		if err := fs.Parse(args); err != nil {
+			printInitHelp()
+			return 1
+		}
+		path := "."
+		if len(fs.Args()) > 0 {
+			path = fs.Args()[0]
+		}
+		return RunRemove(cfgMgr, path)
+
+	default: // "init"
+		fs := flag.NewFlagSet("init", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		baseDir := fs.String("base-dir", "", "Base directory to scan")
+		yes := fs.Bool("y", false, "Accept all defaults")
+		fs.BoolVar(yes, "yes", false, "Accept all defaults")
+		if err := fs.Parse(args); err != nil {
+			printInitHelp()
+			return 1
+		}
+		if jsonOutput {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			enc.Encode(map[string]interface{}{
+				"config_dir":    cfgMgr.ConfigDir,
+				"tracked_repos": cfgMgr.TrackedRepos,
+				"global_config": cfgMgr.GlobalConfig,
+			})
+			return 0
+		}
+		return RunInit(cfgMgr, *baseDir, *yes)
+	}
+}
+
+func printInitHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra init") + " - Scan and track repositories")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra init [flags]")
+	fmt.Println("    iskra verify")
+	fmt.Println("    iskra list, ls [-all]")
+	fmt.Println("    iskra add [path]")
+	fmt.Println("    iskra remove, rm [path]")
+	fmt.Println()
+	fmt.Println(ui.Bold("INIT FLAGS:"))
+	fmt.Println("    -base-dir <path>   Directory to scan for repos")
+	fmt.Println("    -y, -yes           Accept all defaults")
+	fmt.Println()
+	fmt.Println(ui.Bold("VERIFY:"))
+	fmt.Println("    Checks all tracked repos for missing or stale info")
+	fmt.Println("    (branch, remote, description) and fixes it in-place.")
+	fmt.Println("    Removes repos whose paths no longer exist.")
+	fmt.Println()
+	fmt.Println(ui.Bold("LIST FLAGS:"))
+	fmt.Println("    -all   Include inactive repos")
+	fmt.Println()
+}
 
 // tildeify replaces the home directory prefix with ~.
 func tildeify(path string) string {
@@ -96,7 +202,7 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 	}
 
 	// Fetch all GitHub descriptions in one call
-	descriptions := ghcmd.FetchAllDescriptions(0)
+	descriptions := remote.FetchAllDescriptions(0)
 
 	added := 0
 	for _, r := range results {
@@ -137,7 +243,7 @@ func RunVerify(cfgMgr *config.Manager) int {
 	fmt.Printf("%s Verifying %d tracked repositories...\n\n", ui.Icons.Info, len(repos))
 
 	// Fetch all GitHub descriptions in one call
-	descriptions := ghcmd.FetchAllDescriptions(0)
+	descriptions := remote.FetchAllDescriptions(0)
 
 	var updated, removed int
 
@@ -288,7 +394,7 @@ func RunAdd(cfgMgr *config.Manager, path string) int {
 		RemoteURL:     remoteURL,
 		DefaultBranch: branch,
 		LastCommit:    head,
-		Description:   ghcmd.RepoDescription(remoteURL),
+		Description:   remote.RepoDescription(remoteURL),
 		Active:        true,
 	}
 

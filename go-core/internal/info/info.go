@@ -3,6 +3,7 @@ package info
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,7 +13,45 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/NoamFav/iskra/internal/ui"
 )
+
+// RunCLI implements "iskra info".
+func RunCLI(jsonOutput bool, args []string) int {
+	if ui.HasHelpFlag(args) {
+		printInfoHelp()
+		return 0
+	}
+	repoInfo, err := GetInfo()
+	if err != nil {
+		ui.ErrorMsg(err.Error())
+		return 1
+	}
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		enc.Encode(repoInfo)
+		return 0
+	}
+
+	Display(repoInfo)
+	return 0
+}
+
+func printInfoHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra info") + " - Repository info panel")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra info")
+	fmt.Println()
+	fmt.Println("    Shows repo stats: branch, upstream, open PRs, recent commits.")
+	fmt.Println("    Must be run inside a git repository.")
+	fmt.Println("    Use -json for machine-readable output.")
+	fmt.Println()
+}
 
 // RepoInfo holds all repository information
 type RepoInfo struct {
