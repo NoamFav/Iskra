@@ -40,15 +40,15 @@ type IconSet struct {
 	Git, Folder, File, Success, Error, Warning, Info        string
 	Branch, Commit, Push, Pull, Add, Modified, Deleted      string
 	Untracked, Conflict, Clock, Rocket, Spark, Check, Cross string
-	Arrow, Dots, Lock                                        string
+	Arrow, Dots, Lock                                       string
 }
 
 var NerdIcons = IconSet{
-	Git: "", Folder: "", File: "", Success: "", Error: "",
-	Warning: "", Info: "", Branch: "", Commit: "", Push: "",
-	Pull: "", Add: "", Modified: "󰏫", Deleted: "", Untracked: "",
-	Conflict: "", Clock: "", Rocket: "", Spark: "", Check: "",
-	Cross: "", Arrow: "", Dots: "", Lock: "",
+	Git: "", Folder: "", File: "", Success: "", Error: "",
+	Warning: "", Info: "", Branch: "", Commit: "", Push: "",
+	Pull: "", Add: "", Modified: "󰏫", Deleted: "", Untracked: "",
+	Conflict: "", Clock: "", Rocket: "", Spark: "", Check: "",
+	Cross: "", Arrow: "", Dots: "", Lock: "",
 }
 
 var MinimalIcons = IconSet{

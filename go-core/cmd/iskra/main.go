@@ -184,6 +184,8 @@ func main() {
 		exitCode = runInit(cfgMgr, cmd, args, jsonOutput)
 	case "exec":
 		exitCode = runExec(cfgMgr, args, jsonOutput, quiet)
+	case "check":
+		exitCode = runCheck(cfgMgr, args)
 	case "sync":
 		exitCode = runSync(cfgMgr, args, jsonOutput, quiet)
 	case "sync-all":
@@ -230,6 +232,7 @@ func printHelp() {
 	fmt.Println("    sync          Pull current repo")
 	fmt.Println("    sync-all      Pull all tracked repos")
 	fmt.Println("    scan          Scan directory for repos")
+	fmt.Println("    check         Check tracked repos still exist, untrack missing ones")
 	fmt.Println("    log           Show git log (pretty)")
 	fmt.Println("    info          Repository info (like onefetch)")
 	fmt.Println("    diff          Show git diff (colored)")
@@ -396,6 +399,19 @@ func printExecHelp() {
 	fmt.Println(ui.Bold("FLAGS:"))
 	fmt.Println("    -p <n>             Parallel workers (default: 1)")
 	fmt.Println("    -fail-fast         Stop on first error")
+	fmt.Println("    -only <pattern>    Only include repos matching pattern")
+	fmt.Println("    -exclude <pattern> Exclude repos matching pattern")
+	fmt.Println()
+}
+
+func printCheckHelp() {
+	fmt.Println()
+	fmt.Println(ui.Title("⚡ Iskra check") + " - Check tracked repos still exist, offer to untrack missing ones")
+	fmt.Println()
+	fmt.Println(ui.Bold("USAGE:"))
+	fmt.Println("    iskra check [flags]")
+	fmt.Println()
+	fmt.Println(ui.Bold("FLAGS:"))
 	fmt.Println("    -only <pattern>    Only include repos matching pattern")
 	fmt.Println("    -exclude <pattern> Exclude repos matching pattern")
 	fmt.Println()
@@ -1416,6 +1432,26 @@ func printRepoResult(result *processor.RepoResult, index, total int, quiet bool)
 		ui.ErrorMsg(result.Error)
 	}
 	fmt.Println()
+}
+
+func runCheck(cfgMgr *config.Manager, args []string) int {
+	if hasHelpFlag(args) {
+		printCheckHelp()
+		return 0
+	}
+	fs := flag.NewFlagSet("check", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	var only, exclude string
+	fs.StringVar(&only, "only", "", "Only pattern")
+	fs.StringVar(&exclude, "exclude", "", "Exclude pattern")
+	if err := fs.Parse(args); err != nil {
+		printCheckHelp()
+		return 1
+	}
+
+	repos := getRepos(cfgMgr, "", only, exclude)
+	scanner.CheckRepos(repos, cfgMgr)
+	return 0
 }
 
 func getRepos(cfgMgr *config.Manager, scanDir, only, exclude string) []string {

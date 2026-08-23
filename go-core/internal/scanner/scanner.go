@@ -2,68 +2,73 @@
 package scanner
 
 import (
+	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/NoamFav/iskra/internal/config"
 	"github.com/NoamFav/iskra/internal/git"
+	"github.com/NoamFav/iskra/internal/ui"
 )
 
 // HeavyDirs are directories that should never be scanned
 var HeavyDirs = map[string]bool{
-	"node_modules":    true,
-	"dist":            true,
-	"build":           true,
-	"target":          true,
-	"__pycache__":     true,
-	".tox":            true,
-	".nox":            true,
-	"venv":            true,
-	".venv":           true,
-	"env":             true,
-	".env":            true,
-	".git":            true,
-	".svn":            true,
-	".hg":             true,
-	"vendor":          true,
-	"Pods":            true,
-	".gradle":         true,
-	".idea":           true,
-	".vs":             true,
-	"bin":             true,
-	"obj":             true,
-	"out":             true,
-	".next":           true,
-	".nuxt":           true,
-	".cache":          true,
-	"coverage":        true,
-	".pytest_cache":   true,
-	".mypy_cache":     true,
-	"__snapshots__":   true,
-	".terraform":      true,
-	".serverless":     true,
-	".aws-sam":        true,
-	"cdk.out":         true,
-	".docusaurus":     true,
-	".turbo":          true,
-	".nx":             true,
-	"android":         true,
-	".android":        true,
-	"ios":             true,
-	"windows":         true,
-	"linux":           true,
-	"macos":           true,
-	".dart_tool":      true,
-	".pub-cache":      true,
-	"DerivedData":     true,
+	"node_modules":  true,
+	"dist":          true,
+	"build":         true,
+	"target":        true,
+	"__pycache__":   true,
+	".tox":          true,
+	".nox":          true,
+	"venv":          true,
+	".venv":         true,
+	"env":           true,
+	".env":          true,
+	".git":          true,
+	".svn":          true,
+	".hg":           true,
+	"vendor":        true,
+	"Pods":          true,
+	".gradle":       true,
+	".idea":         true,
+	".vs":           true,
+	"bin":           true,
+	"obj":           true,
+	"out":           true,
+	".next":         true,
+	".nuxt":         true,
+	".cache":        true,
+	"coverage":      true,
+	".pytest_cache": true,
+	".mypy_cache":   true,
+	"__snapshots__": true,
+	".terraform":    true,
+	".serverless":   true,
+	".aws-sam":      true,
+	"cdk.out":       true,
+	".docusaurus":   true,
+	".turbo":        true,
+	".nx":           true,
+	"android":       true,
+	".android":      true,
+	"ios":           true,
+	"windows":       true,
+	"linux":         true,
+	"macos":         true,
+	".dart_tool":    true,
+	".pub-cache":    true,
+	"DerivedData":   true,
 }
 
 // Options for scanning
 type Options struct {
-	BaseDir        string
-	MaxDepth       int
-	FollowSymlinks bool
-	OnlyPatterns   []string
+	BaseDir         string
+	MaxDepth        int
+	FollowSymlinks  bool
+	OnlyPatterns    []string
 	ExcludePatterns []string
 }
 
@@ -269,5 +274,45 @@ func GetCurrentRepo() (*Result, error) {
 			return nil, nil // Not in a git repo
 		}
 		dir = parent
+	}
+}
+
+func CheckRepos(repos []string, cfgMgr *config.Manager) {
+	for i, repoPath := range repos {
+		if git.IsGitRepo(repoPath) {
+			fmt.Printf("%s %s exists and is a valid git repo\n", ui.DotSuccess, repoPath)
+		} else {
+			fmt.Printf("%s %s is missing or no longer a git repo\n", ui.DotError, repoPath)
+			if confirm("Do you want to remove it from tracking?") {
+				if cfgMgr.RemoveRepo(repoPath) {
+					cfgMgr.SaveRepos()
+				}
+			}
+		}
+
+		if i < len(repos)-1 {
+			time.Sleep(150 * time.Millisecond)
+		}
+	}
+}
+
+func confirm(prompt string) bool {
+	sc := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Printf("%s [y/N]: ", prompt)
+		if !sc.Scan() {
+			return false
+		}
+		if sc.Err() != nil {
+			return false
+		}
+		switch strings.ToLower(strings.TrimSpace(sc.Text())) {
+		case "y", "yes":
+			return true
+		case "n", "no", "":
+			return false
+		default:
+			fmt.Println("Please answer y or n.")
+		}
 	}
 }
