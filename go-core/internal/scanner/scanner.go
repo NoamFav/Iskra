@@ -280,7 +280,55 @@ func GetCurrentRepo() (*Result, error) {
 	}
 }
 
-func CheckRepos(repos []string, cfgMgr *config.Manager) {
+// IndexByID scans baseDir once and maps marker ID to where it currently
+// lives, one scan covers every missing repo in a CheckRepos call instead
+// of rescanning per repo
+func IndexByID(cfgMgr *config.Manager, baseDir string) map[string]Result {
+	found, _ := FindRepos(Options{
+		BaseDir:  baseDir,
+		MaxDepth: cfgMgr.GlobalConfig.MaxDepth,
+	})
+	index := make(map[string]Result)
+	for _, r := range found {
+		if id, err := cfgMgr.MarkerID(r.Path); err == nil && id != "" {
+			index[id] = r
+		}
+	}
+	return index
+}
+
+// relinkRepo moves a tracked entry to its new path/name after a move.
+// skips config.AddRepo on purpose, that forces Active back to true, wrong
+// for a repo that was deliberately marked inactive
+func relinkRepo(cfgMgr *config.Manager, oldPath, newPath, newName string) {
+	info := cfgMgr.TrackedRepos[oldPath]
+	if info == nil {
+		return
+	}
+	delete(cfgMgr.TrackedRepos, oldPath)
+	info.Path = newPath
+	info.Name = newName
+	cfgMgr.TrackedRepos[newPath] = info
+	cfgMgr.SaveRepos()
+}
+
+func CheckRepos(repos []string, cfgMgr *config.Manager, autoRelink bool) {
+	// find is lazy, the base-dir scan behind it only runs if something
+	// actually gets flagged and the user asks to look
+	var idIndex map[string]Result
+	var indexBuilt bool
+	buildIndex := func() map[string]Result {
+		if !indexBuilt {
+			idIndex = IndexByID(cfgMgr, config.ExpandPath(cfgMgr.GlobalConfig.BaseDir))
+			indexBuilt = true
+		}
+		return idIndex
+	}
+
+	// one scanner for the whole run, a fresh one per repo can silently eat
+	// a later answer if stdin already has more than one line buffered
+	sc := bufio.NewScanner(os.Stdin)
+
 	for i, repoPath := range repos {
 		info := cfgMgr.TrackedRepos[repoPath]
 		removeCandidate := false
@@ -311,9 +359,11 @@ func CheckRepos(repos []string, cfgMgr *config.Manager) {
 			}
 		}
 
-		if removeCandidate && confirm("Do you want to remove it from tracking?") {
-			if cfgMgr.RemoveRepo(repoPath) {
-				cfgMgr.SaveRepos()
+		if removeCandidate {
+			if autoRelink {
+				relinkIfFound(cfgMgr, repoPath, info, buildIndex)
+			} else {
+				resolveMissing(sc, cfgMgr, repoPath, info, buildIndex)
 			}
 		}
 
@@ -323,23 +373,60 @@ func CheckRepos(repos []string, cfgMgr *config.Manager) {
 	}
 }
 
-func confirm(prompt string) bool {
-	sc := bufio.NewScanner(os.Stdin)
+// relinkIfFound is -relink's non-interactive stand-in for the find option,
+// relinks if a match turns up, otherwise just leaves the repo alone, no
+// prompt either way, for scripting/cron use
+func relinkIfFound(cfgMgr *config.Manager, repoPath string, info *config.RepoInfo, idIndex func() map[string]Result) {
+	if info == nil || info.ID == "" {
+		return
+	}
+	found, ok := idIndex()[info.ID]
+	if !ok || found.Path == repoPath {
+		return
+	}
+	if _, taken := cfgMgr.TrackedRepos[found.Path]; taken {
+		return
+	}
+	relinkRepo(cfgMgr, repoPath, found.Path, found.Name)
+	fmt.Printf("%s relinked to %s\n", ui.DotSuccess, found.Path)
+}
+
+// resolveMissing offers find/untrack/skip for a repo that failed
+// verification, picking f goes straight to relinking, no extra confirm on
+// top, that choice already was the confirm
+func resolveMissing(sc *bufio.Scanner, cfgMgr *config.Manager, repoPath string, info *config.RepoInfo, idIndex func() map[string]Result) {
 	for {
-		fmt.Printf("%s [y/N]: ", prompt)
-		if !sc.Scan() {
-			return false
-		}
-		if sc.Err() != nil {
-			return false
+		fmt.Printf("[f]ind, [u]ntrack, or [s]kip? ")
+		if !sc.Scan() || sc.Err() != nil {
+			return
 		}
 		switch strings.ToLower(strings.TrimSpace(sc.Text())) {
-		case "y", "yes":
-			return true
-		case "n", "no", "":
-			return false
+		case "f", "find":
+			if info == nil || info.ID == "" {
+				fmt.Println("no identity marker recorded for this repo, nothing to search by")
+				continue
+			}
+			found, ok := idIndex()[info.ID]
+			if !ok || found.Path == repoPath {
+				fmt.Println("couldn't find it")
+				continue
+			}
+			if _, taken := cfgMgr.TrackedRepos[found.Path]; taken {
+				fmt.Printf("%s is already tracked under its own entry, can't relink there\n", found.Path)
+				continue
+			}
+			relinkRepo(cfgMgr, repoPath, found.Path, found.Name)
+			fmt.Printf("%s relinked to %s\n", ui.DotSuccess, found.Path)
+			return
+		case "u", "untrack":
+			if cfgMgr.RemoveRepo(repoPath) {
+				cfgMgr.SaveRepos()
+			}
+			return
+		case "s", "skip", "":
+			return
 		default:
-			fmt.Println("Please answer y or n.")
+			fmt.Println("please answer f, u, or s")
 		}
 	}
 }
@@ -443,7 +530,7 @@ func printScanHelp() {
 }
 
 // RunCheck implements "iskra check": verify tracked repos still exist,
-// offering to untrack any that are missing.
+// offering to find/untrack/skip any that don't check out.
 func RunCheck(cfgMgr *config.Manager, args []string) int {
 	if ui.HasHelpFlag(args) {
 		printCheckHelp()
@@ -452,21 +539,23 @@ func RunCheck(cfgMgr *config.Manager, args []string) int {
 	fs := flag.NewFlagSet("check", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var only, exclude string
+	var relink bool
 	fs.StringVar(&only, "only", "", "Only pattern")
 	fs.StringVar(&exclude, "exclude", "", "Exclude pattern")
+	fs.BoolVar(&relink, "relink", false, "Auto-relink moved repos without prompting, for scripts")
 	if err := fs.Parse(args); err != nil {
 		printCheckHelp()
 		return 1
 	}
 
 	repos := SelectRepos(cfgMgr, "", only, exclude)
-	CheckRepos(repos, cfgMgr)
+	CheckRepos(repos, cfgMgr, relink)
 	return 0
 }
 
 func printCheckHelp() {
 	fmt.Println()
-	fmt.Println(ui.Title("⚡ Iskra check") + " - Check tracked repos still exist, offer to untrack missing ones")
+	fmt.Println(ui.Title("⚡ Iskra check") + " - Check tracked repos still exist, offer to find/untrack/skip broken ones")
 	fmt.Println()
 	fmt.Println(ui.Bold("USAGE:"))
 	fmt.Println("    iskra check [flags]")
@@ -474,5 +563,11 @@ func printCheckHelp() {
 	fmt.Println(ui.Bold("FLAGS:"))
 	fmt.Println("    -only <pattern>    Only include repos matching pattern")
 	fmt.Println("    -exclude <pattern> Exclude repos matching pattern")
+	fmt.Println("    -relink            Auto-relink moved repos without prompting, for scripts")
+	fmt.Println()
+	fmt.Println(ui.Bold("ON A BROKEN REPO (interactive, without -relink):"))
+	fmt.Println("    [f]ind    search the base dir for a .iskra with the same ID and relink to it")
+	fmt.Println("    [u]ntrack drop it from tracking")
+	fmt.Println("    [s]kip    leave it as-is")
 	fmt.Println()
 }
