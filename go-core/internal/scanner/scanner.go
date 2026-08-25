@@ -111,7 +111,7 @@ func matchAny(path string, patterns []string) bool {
 }
 
 // FindGitRepos finds all git repositories in the base directory
-func FindGitRepos(opts Options) ([]Result, error) {
+func FindRepos(opts Options) ([]Result, error) {
 	baseDir := opts.BaseDir
 	if baseDir == "" {
 		var err error
@@ -192,8 +192,8 @@ func walkDir(current, base string, depth int, opts Options, repos *[]Result) err
 			fullPath = resolved
 		}
 
-		// Check if this is a git repo
-		if remote.IsGitRepo(fullPath) {
+		// git repo, or explicitly .iskra-marked, either counts as found
+		if remote.IsGitRepo(fullPath) || config.HasMarker(fullPath) {
 			// Apply filters
 			relPath, _ := filepath.Rel(base, fullPath)
 			displayName := relPath
@@ -228,7 +228,7 @@ func walkDir(current, base string, depth int, opts Options, repos *[]Result) err
 
 // FindRepoInSubdirs looks for a specific repo by name
 func FindRepoInSubdirs(baseDir, repoName string) string {
-	repos, err := FindGitRepos(Options{
+	repos, err := FindRepos(Options{
 		BaseDir:  baseDir,
 		MaxDepth: 5,
 	})
@@ -282,19 +282,43 @@ func GetCurrentRepo() (*Result, error) {
 
 func CheckRepos(repos []string, cfgMgr *config.Manager) {
 	for i, repoPath := range repos {
-		if remote.IsGitRepo(repoPath) {
-			fmt.Printf("%s %s exists and is a valid git repo\n", ui.DotSuccess, repoPath)
-		} else {
-			fmt.Printf("%s %s is missing or no longer a git repo\n", ui.DotError, repoPath)
-			if confirm("Do you want to remove it from tracking?") {
-				if cfgMgr.RemoveRepo(repoPath) {
-					cfgMgr.SaveRepos()
-				}
+		info := cfgMgr.TrackedRepos[repoPath]
+		removeCandidate := false
+
+		switch {
+		case !remote.IsGitRepo(repoPath) && !config.HasMarker(repoPath):
+			fmt.Printf("%s %s is missing or no longer a git/iskra repo\n", ui.DotError, repoPath)
+			removeCandidate = true
+
+		case info == nil || info.ID == "":
+			// not tracked (shouldn't happen through RunCheck) or tracked
+			// before markers existed, either way don't flag it as a mismatch
+			fmt.Printf("%s %s exists (no identity marker recorded, run 'iskra verify' to link one)\n", ui.DotSuccess, repoPath)
+
+		default:
+			markerID, err := cfgMgr.MarkerID(repoPath)
+			switch {
+			case err != nil:
+				fmt.Printf("%s %s has an unreadable .iskra marker: %s\n", ui.DotWarning, repoPath, err)
+			case markerID == "":
+				fmt.Printf("%s %s no longer has a matching .iskra marker, likely a different repo now\n", ui.DotError, repoPath)
+				removeCandidate = true
+			case markerID != info.ID:
+				fmt.Printf("%s %s marker ID doesn't match tracked identity, a different repo now lives here\n", ui.DotError, repoPath)
+				removeCandidate = true
+			default:
+				fmt.Printf("%s %s exists and identity verified\n", ui.DotSuccess, repoPath)
+			}
+		}
+
+		if removeCandidate && confirm("Do you want to remove it from tracking?") {
+			if cfgMgr.RemoveRepo(repoPath) {
+				cfgMgr.SaveRepos()
 			}
 		}
 
 		if i < len(repos)-1 {
-			time.Sleep(150 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 }
@@ -335,7 +359,7 @@ func SelectRepos(cfgMgr *config.Manager, scanDir, only, exclude string) []string
 	}
 
 	if scanDir != "" {
-		found, _ := FindGitRepos(Options{
+		found, _ := FindRepos(Options{
 			BaseDir:         scanDir,
 			MaxDepth:        cfgMgr.GlobalConfig.MaxDepth,
 			OnlyPatterns:    onlyPatterns,
@@ -377,7 +401,7 @@ func RunScan(cfgMgr *config.Manager, args []string, jsonOutput bool) int {
 		baseDir = config.ExpandPath(cfgMgr.GlobalConfig.BaseDir)
 	}
 
-	repos, err := FindGitRepos(Options{
+	repos, err := FindRepos(Options{
 		BaseDir:  baseDir,
 		MaxDepth: maxDepth,
 	})

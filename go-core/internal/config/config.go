@@ -3,7 +3,10 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -65,6 +68,7 @@ type GlobalConfig struct {
 type RepoInfo struct {
 	Path          string `json:"path"`
 	Name          string `json:"name"`
+	ID            string `json:"id,omitempty"`
 	RemoteURL     string `json:"remote_url,omitempty"`
 	DefaultBranch string `json:"default_branch,omitempty"`
 	LastCommit    string `json:"last_commit,omitempty"`
@@ -73,8 +77,10 @@ type RepoInfo struct {
 	Active        bool   `json:"active"`
 }
 
-// RepoConfig holds per-repository overrides
+// RepoConfig is the .iskra file, doubles as the tracking marker and the
+// per-repo overrides, one hidden file instead of two
 type RepoConfig struct {
+	ID                   string   `yaml:"id,omitempty" json:"id,omitempty"`
 	ProtectedBranches    []string `yaml:"protected_branches,omitempty" json:"protected_branches,omitempty"`
 	UseAICommit          *bool    `yaml:"use_ai_commit,omitempty" json:"use_ai_commit,omitempty"`
 	CommitMessageStyle   string   `yaml:"commit_message_style,omitempty" json:"commit_message_style,omitempty"`
@@ -262,9 +268,10 @@ func (m *Manager) loadUIConfig() error {
 	return yaml.Unmarshal(data, m.UIConfig)
 }
 
-// LoadRepoConfig loads per-repo .iskra.yaml if it exists
+// LoadRepoConfig reads .iskra if it's there, marker and overrides live in
+// the same file now, used to be split across two
 func (m *Manager) LoadRepoConfig(repoPath string) (*RepoConfig, error) {
-	configPath := filepath.Join(repoPath, ".iskra.yaml")
+	configPath := filepath.Join(repoPath, ".iskra")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -312,6 +319,71 @@ func (m *Manager) MergeConfig(repoPath string) *GlobalConfig {
 	}
 
 	return &merged
+}
+
+// HasMarker just stats for .iskra, no YAML parse, this runs on every
+// directory during a scan, keep it cheap
+func HasMarker(repoPath string) bool {
+	info, err := os.Stat(filepath.Join(repoPath, ".iskra"))
+	return err == nil && info.Mode().IsRegular()
+}
+
+// GenerateID is 16 random bytes, hex-encoded, not a hash, doesn't need to
+// mean anything, just needs to survive a mv
+func GenerateID() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// MarkerID reads the ID out of repoPath's .iskra: ("", nil) if there's no
+// marker, ("", err) if it's there but won't parse, callers care which
+func (m *Manager) MarkerID(repoPath string) (string, error) {
+	cfg, err := m.LoadRepoConfig(repoPath)
+	if err != nil {
+		return "", err
+	}
+	if cfg == nil {
+		return "", nil
+	}
+	return cfg.ID, nil
+}
+
+// EnsureMarker creates .iskra if it's missing and backfills the ID if it's
+// there but empty, never regenerates one that already exists, so re-adding
+// the same repo a hundred times keeps the same identity. won't touch a
+// marker it can't parse either, better to bail than clobber something you
+// hand-edited
+func (m *Manager) EnsureMarker(repoPath string) (string, error) {
+	cfg, err := m.LoadRepoConfig(repoPath)
+	if err != nil {
+		return "", fmt.Errorf("malformed .iskra marker: %w", err)
+	}
+	if cfg == nil {
+		cfg = &RepoConfig{}
+	}
+	if cfg.ID != "" {
+		return cfg.ID, nil
+	}
+	id, err := GenerateID()
+	if err != nil {
+		return "", err
+	}
+	cfg.ID = id
+	if err := m.writeMarker(repoPath, cfg); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func (m *Manager) writeMarker(repoPath string, cfg *RepoConfig) error {
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(repoPath, ".iskra"), data, 0644)
 }
 
 // GetActiveRepos returns all active tracked repositories

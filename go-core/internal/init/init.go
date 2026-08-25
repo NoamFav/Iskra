@@ -134,6 +134,22 @@ func tildeify(path string) string {
 	return path
 }
 
+// resolveTrackPath: git root if path is inside a repo, otherwise just the
+// absolute path, a plain directory can still be tracked via .iskra
+func resolveTrackPath(path string) (string, error) {
+	if out, err := exec.Command("git", "-C", path, "rev-parse", "--show-toplevel").Output(); err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve path: %s", path)
+	}
+	if fi, err := os.Stat(abs); err != nil || !fi.IsDir() {
+		return "", fmt.Errorf("not a directory: %s", path)
+	}
+	return abs, nil
+}
+
 // RepoGitInfo gathers branch/remote/HEAD for a repo path.
 func RepoGitInfo(repoPath string) (branch, remoteURL, head string) {
 	run := func(args ...string) string {
@@ -160,7 +176,7 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 	fmt.Printf("%s Scanning %s for git repositories...\n\n", ui.Icons.Folder, ui.Bold(tildeify(base)))
 
 	cfg := cfgMgr.GlobalConfig
-	results, err := scanner.FindGitRepos(scanner.Options{
+	results, err := scanner.FindRepos(scanner.Options{
 		BaseDir:         base,
 		MaxDepth:        cfg.MaxDepth,
 		FollowSymlinks:  cfg.FollowSymlinks,
@@ -205,12 +221,20 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 	descriptions := remote.FetchAllDescriptions(0)
 
 	added := 0
+	skipped := 0
 	for _, r := range results {
+		id, err := cfgMgr.EnsureMarker(r.Path)
+		if err != nil {
+			fmt.Printf("  %s %s: malformed .iskra marker, skipping (%s)\n", ui.DotWarning, tildeify(r.Path), err.Error())
+			skipped++
+			continue
+		}
 		branch, remoteURL, head := RepoGitInfo(r.Path)
 		name := filepath.Base(r.Path)
 		info := &config.RepoInfo{
 			Path:          r.Path,
 			Name:          name,
+			ID:            id,
 			RemoteURL:     remoteURL,
 			DefaultBranch: branch,
 			LastCommit:    head,
@@ -227,6 +251,9 @@ func RunInit(cfgMgr *config.Manager, baseDir string, yes bool) int {
 		return 1
 	}
 
+	if skipped > 0 {
+		fmt.Printf("%s Skipped %s repositories with malformed markers\n", ui.Icons.Warning, ui.Bold(fmt.Sprintf("%d", skipped)))
+	}
 	fmt.Printf("\n%s Tracked %s repositories\n", ui.Icons.Success, ui.Bold(fmt.Sprintf("%d", added)))
 	fmt.Printf("%s Config: %s\n", ui.Inf(ui.Icons.Info), tildeify(cfgMgr.ConfigDir))
 	return 0
@@ -258,6 +285,13 @@ func RunVerify(cfgMgr *config.Manager) int {
 
 		branch, remoteURL, head := RepoGitInfo(repo.Path)
 		changed := false
+
+		if repo.ID == "" {
+			if id, err := cfgMgr.EnsureMarker(repo.Path); err == nil {
+				repo.ID = id
+				changed = true
+			}
+		}
 
 		if branch != "" && branch != repo.DefaultBranch {
 			repo.DefaultBranch = branch
@@ -377,20 +411,26 @@ func RunList(cfgMgr *config.Manager, all bool) int {
 	return 0
 }
 
-// RunAdd adds a single repository to tracking.
+// RunAdd tracks a repo. doesn't actually have to be a repo, a plain
+// directory works too, it just gets tracked via .iskra instead of git
 func RunAdd(cfgMgr *config.Manager, path string) int {
-	// Resolve git root
-	out, err := exec.Command("git", "-C", path, "rev-parse", "--show-toplevel").Output()
+	repoPath, err := resolveTrackPath(path)
 	if err != nil {
-		ui.ErrorMsg(fmt.Sprintf("Not a git repository: %s", path))
+		ui.ErrorMsg(err.Error())
 		return 1
 	}
-	repoPath := strings.TrimSpace(string(out))
+
+	id, err := cfgMgr.EnsureMarker(repoPath)
+	if err != nil {
+		ui.ErrorMsg("Failed to create/read .iskra marker: " + err.Error())
+		return 1
+	}
 
 	branch, remoteURL, head := RepoGitInfo(repoPath)
 	info := &config.RepoInfo{
 		Path:          repoPath,
 		Name:          filepath.Base(repoPath),
+		ID:            id,
 		RemoteURL:     remoteURL,
 		DefaultBranch: branch,
 		LastCommit:    head,
@@ -412,15 +452,15 @@ func RunAdd(cfgMgr *config.Manager, path string) int {
 	return 0
 }
 
-// RunRemove removes a repository from tracking.
+// RunRemove untracks a repo but leaves .iskra alone, this only touches
+// the central index, so re-adding the same directory later picks the
+// same identity back up
 func RunRemove(cfgMgr *config.Manager, path string) int {
-	// Resolve git root
-	out, err := exec.Command("git", "-C", path, "rev-parse", "--show-toplevel").Output()
+	repoPath, err := resolveTrackPath(path)
 	if err != nil {
-		ui.ErrorMsg(fmt.Sprintf("Not a git repository: %s", path))
+		ui.ErrorMsg(err.Error())
 		return 1
 	}
-	repoPath := strings.TrimSpace(string(out))
 
 	removed := cfgMgr.RemoveRepo(repoPath)
 	if !removed {
