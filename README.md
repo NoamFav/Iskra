@@ -1,27 +1,30 @@
-# ⚡ Iskra
-
 <div align="center">
-
-<img src="https://img.shields.io/github/v/release/NoamFav/Iskra?style=for-the-badge&color=86CFAC" alt="Release">
-<img src="https://img.shields.io/badge/go-1.24+-00ADD8.svg?style=for-the-badge&logo=go" alt="Go">
-<img src="https://img.shields.io/badge/license-Apache%202.0-green.svg?style=for-the-badge" alt="License">
-<img src="https://img.shields.io/github/actions/workflow/status/NoamFav/Iskra/ci.yml?style=for-the-badge&label=CI" alt="CI">
-
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/brand/banner-night.svg">
+  <img alt="Iskra: Git automation for people who manage a lot of repos — AI-powered commits, bulk sync, and single-binary tooling in Go. Successor to Zvezda." src=".github/brand/banner-paper.svg" width="100%">
+</picture>
 <br><br>
-
-**Git automation for people who manage a lot of repos**
-
-[Install](#installation) · [Quick Start](#quick-start) · [Commands](#commands) · [Configuration](#configuration)
-
+<a href="#how-it-works"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-how-it-works-night.svg"><img alt="how it works" src=".github/brand/tab-how-it-works-paper.svg"></picture></a>
+<a href="#installation"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-installation-night.svg"><img alt="installation" src=".github/brand/tab-installation-paper.svg"></picture></a>
+<a href="#quick-start"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-quick-start-night.svg"><img alt="quick start" src=".github/brand/tab-quick-start-paper.svg"></picture></a>
+<a href="#commands"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-commands-night.svg"><img alt="commands" src=".github/brand/tab-commands-paper.svg"></picture></a>
+<a href="#flags"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-flags-night.svg"><img alt="flags" src=".github/brand/tab-flags-paper.svg"></picture></a>
+<a href="#configuration"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-configuration-night.svg"><img alt="configuration" src=".github/brand/tab-configuration-paper.svg"></picture></a>
+<a href="#ai-commit-messages"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-ai-commit-messages-night.svg"><img alt="ai commit messages" src=".github/brand/tab-ai-commit-messages-paper.svg"></picture></a>
+<a href="#building-from-source"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-building-from-source-night.svg"><img alt="building from source" src=".github/brand/tab-building-from-source-paper.svg"></picture></a>
+<a href="#contributing"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-contributing-night.svg"><img alt="contributing" src=".github/brand/tab-contributing-paper.svg"></picture></a>
+<a href="#acknowledgements"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-acknowledgements-night.svg"><img alt="acknowledgements" src=".github/brand/tab-acknowledgements-paper.svg"></picture></a>
+<a href="#license"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-license-night.svg"><img alt="license" src=".github/brand/tab-license-paper.svg"></picture></a>
 </div>
 
----
+<br>
 
 Iskra is a single Go binary that handles the tedious parts of git across all your repositories at once — AI-powered commits, bulk sync, status overview — while also giving you a clean set of single-repo tools under `iskra pulse`.
 
----
-
-## How it works
+<p>
+<a name="how-it-works"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-how-it-works-night.svg"><img alt="how it works" src=".github/brand/section-how-it-works-paper.svg" width="100%"></picture>
+</p>
 
 ```mermaid
 flowchart LR
@@ -37,9 +40,10 @@ flowchart LR
     I --> J
 ```
 
----
-
-## Installation
+<p>
+<a name="installation"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-installation-night.svg"><img alt="installation" src=".github/brand/section-installation-paper.svg" width="100%"></picture>
+</p>
 
 **One-liner** (downloads pre-built binary, no Go required):
 
@@ -63,9 +67,10 @@ cd Iskra && make install
 | `ollama` | AI commit messages (default provider) |
 | `gh` | `iskra gh`, `iskra clone` |
 
----
-
-## Quick Start
+<p>
+<a name="quick-start"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-quick-start-night.svg"><img alt="quick start" src=".github/brand/section-quick-start-paper.svg" width="100%"></picture>
+</p>
 
 ```bash
 iskra init        # 1. scan a directory and track all repos found
@@ -75,9 +80,10 @@ iskra             # 3. commit and push everything
 
 Iskra remembers your repos in `~/.config/iskra/repos.json` and processes them every time you run `iskra`.
 
----
-
-## Commands
+<p>
+<a name="commands"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-commands-night.svg"><img alt="commands" src=".github/brand/section-commands-paper.svg" width="100%"></picture>
+</p>
 
 ```mermaid
 graph LR
@@ -197,9 +203,10 @@ iskra branches  # List all branches  (alias: iskra br)
 iskra stash     # Stash management (list / push / pop)
 ```
 
----
-
-## Flags
+<p>
+<a name="flags"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-flags-night.svg"><img alt="flags" src=".github/brand/section-flags-paper.svg" width="100%"></picture>
+</p>
 
 | Flag | Description |
 |------|-------------|
@@ -213,9 +220,10 @@ iskra stash     # Stash management (list / push / pop)
 | `--minimal` | No colors or icons (good for CI) |
 | `-q` | Quiet mode |
 
----
-
-## Configuration
+<p>
+<a name="configuration"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-configuration-night.svg"><img alt="configuration" src=".github/brand/section-configuration-paper.svg" width="100%"></picture>
+</p>
 
 Config lives at `~/.config/iskra/config.yaml`. Created automatically on first run.
 
@@ -262,9 +270,10 @@ use_ai_commit: false
 protected_branches: [main, develop, staging]
 ```
 
----
-
-## AI Commit Messages
+<p>
+<a name="ai-commit-messages"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-ai-commit-messages-night.svg"><img alt="ai commit messages" src=".github/brand/section-ai-commit-messages-paper.svg" width="100%"></picture>
+</p>
 
 Iskra generates [Conventional Commits](https://www.conventionalcommits.org/) from your diff:
 
@@ -283,9 +292,10 @@ refactor(db): simplify query builder
 
 If AI generation fails for any reason, Iskra falls back to a smart conventional message generated from the diff — it never blocks you.
 
----
-
-## Building from Source
+<p>
+<a name="building-from-source"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-building-from-source-night.svg"><img alt="building from source" src=".github/brand/section-building-from-source-paper.svg" width="100%"></picture>
+</p>
 
 ```bash
 git clone https://github.com/NoamFav/Iskra
@@ -298,31 +308,41 @@ make lint       # go vet ./...
 
 The version string is injected from the git tag at build time via `-ldflags "-X main.version=..."`.
 
----
-
-## Contributing
+<p>
+<a name="contributing"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-contributing-night.svg"><img alt="contributing" src=".github/brand/section-contributing-paper.svg" width="100%"></picture>
+</p>
 
 1. Fork → branch → commit (use `iskra pulse` 😄)
 2. Code is pure Go in `go-core/`. Follow standard Go conventions (`gofmt`, `go vet`).
 3. PRs welcome — check [open issues](https://github.com/NoamFav/Iskra/issues) for ideas.
 
----
-
-## Acknowledgements
+<p>
+<a name="acknowledgements"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-acknowledgements-night.svg"><img alt="acknowledgements" src=".github/brand/section-acknowledgements-paper.svg" width="100%"></picture>
+</p>
 
 - [onefetch](https://github.com/o2sh/onefetch) — inspiration for `iskra info`
 - [Lip Gloss](https://github.com/charmbracelet/lipgloss) — terminal styling
 - [Ollama](https://ollama.ai) — local AI runtime
 - [gh](https://cli.github.com/) — GitHub CLI integration
 
----
-
-## License
+<p>
+<a name="license"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-license-night.svg"><img alt="license" src=".github/brand/section-license-paper.svg" width="100%"></picture>
+</p>
 
 Apache 2.0 — see [LICENSE](LICENSE).
-
----
 
 <div align="center">
 Made with ⚡ by <a href="https://github.com/NoamFav">NoamFav</a>
 </div>
+
+<br>
+
+<a href="https://nf-software.com">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/brand/footer-night.svg">
+  <img alt="NF Software" src=".github/brand/footer-paper.svg" width="100%">
+</picture>
+</a>
