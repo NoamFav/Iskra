@@ -1,348 +1,312 @@
 <div align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/brand/banner-night.svg">
-  <img alt="Iskra: Git automation for people who manage a lot of repos — AI-powered commits, bulk sync, and single-binary tooling in Go. Successor to Zvezda." src=".github/brand/banner-paper.svg" width="100%">
-</picture>
-<br><br>
-<a href="#how-it-works"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-how-it-works-night.svg"><img alt="how it works" src=".github/brand/tab-how-it-works-paper.svg"></picture></a>
-<a href="#installation"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-installation-night.svg"><img alt="installation" src=".github/brand/tab-installation-paper.svg"></picture></a>
-<a href="#quick-start"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-quick-start-night.svg"><img alt="quick start" src=".github/brand/tab-quick-start-paper.svg"></picture></a>
-<a href="#commands"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-commands-night.svg"><img alt="commands" src=".github/brand/tab-commands-paper.svg"></picture></a>
-<a href="#flags"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-flags-night.svg"><img alt="flags" src=".github/brand/tab-flags-paper.svg"></picture></a>
-<a href="#configuration"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-configuration-night.svg"><img alt="configuration" src=".github/brand/tab-configuration-paper.svg"></picture></a>
-<a href="#ai-commit-messages"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-ai-commit-messages-night.svg"><img alt="ai commit messages" src=".github/brand/tab-ai-commit-messages-paper.svg"></picture></a>
-<a href="#building-from-source"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-building-from-source-night.svg"><img alt="building from source" src=".github/brand/tab-building-from-source-paper.svg"></picture></a>
-<a href="#contributing"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-contributing-night.svg"><img alt="contributing" src=".github/brand/tab-contributing-paper.svg"></picture></a>
-<a href="#acknowledgements"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-acknowledgements-night.svg"><img alt="acknowledgements" src=".github/brand/tab-acknowledgements-paper.svg"></picture></a>
-<a href="#license"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-license-night.svg"><img alt="license" src=".github/brand/tab-license-paper.svg"></picture></a>
+
+<h1>Iskra</h1>
+
+<p><strong>Git across every repository, from one binary.</strong></p>
+
+<p>
+  <a href="https://github.com/NoamFav/Iskra/releases"><img alt="Release" src="https://img.shields.io/github/v/release/NoamFav/Iskra?style=flat-square"></a>
+  <a href="https://github.com/NoamFav/Iskra/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/NoamFav/Iskra/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Go: 1.24" src="https://img.shields.io/badge/Go-1.24-00ADD8?style=flat-square&logo=go&logoColor=white">
+  <img alt="platform: macOS | Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-555555?style=flat-square&logo=linux&logoColor=white">
+  <a href="LICENSE"><img alt="license: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-D22128?style=flat-square&logo=apache&logoColor=white"></a>
+</p>
+
+<p>
+  <a href="#why">Why</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="#usage">Usage</a> ·
+  <a href="#ai-commit-messages">AI commits</a> ·
+  <a href="#configuration">Configuration</a>
+</p>
+
 </div>
 
-<br>
+Iskra manages Git across many repositories at once. One command checks every repository you
+track, commits whatever changed with a well-formed message, and pushes. Around that core it
+offers a status overview, bulk pull and clone, a command runner for all repos, and guided
+helpers for the fiddly single-repo operations (rebase, fixup, cherry-pick, tag).
 
-Iskra is a single Go binary that handles the tedious parts of git across all your repositories at once — AI-powered commits, bulk sync, status overview — while also giving you a clean set of single-repo tools under `iskra pulse`.
+It is a single static Go binary with no runtime dependencies beyond `git`. It is the successor
+of [Zvezda](https://github.com/NoamFav/Zvezda), which needed Python and Go side by side.
 
-<p>
-<a name="how-it-works"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-how-it-works-night.svg"><img alt="how it works" src=".github/brand/section-how-it-works-paper.svg" width="100%"></picture>
-</p>
+## Why
 
-```mermaid
-flowchart LR
-    A([iskra init]) --> B[(tracked repos)]
-    B --> C{iskra}
-    C --> D[diff each repo]
-    D --> E{has changes?}
-    E -- no --> F([skip])
-    E -- yes --> G{AI available?}
-    G -- yes --> H[generate message]
-    G -- no --> I[smart fallback]
-    H --> J([commit + push])
-    I --> J
+With a few dozen repositories (projects, dotfiles, notes, experiments), the end of a work
+session looks like this, over and over:
+
+```bash
+cd ~/code/project-a && git add -A && git commit -m "wip" && git push
+cd ~/code/project-b && git status   # forgot this one had changes yesterday
+...
 ```
 
-<p>
-<a name="installation"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-installation-night.svg"><img alt="installation" src=".github/brand/section-installation-paper.svg" width="100%"></picture>
-</p>
+The result is skipped repos, unpushed work and a history full of `wip`. Iskra replaces the
+loop with one command, and replaces `wip` with a
+[Conventional Commit](https://www.conventionalcommits.org/) message written from the actual
+diff.
 
-**One-liner** (downloads pre-built binary, no Go required):
+## How it works
+
+Iskra keeps a list of tracked repositories in `~/.config/iskra/repos.json`. Running `iskra`
+walks that list and runs the same pipeline in each repository:
+
+```mermaid
+flowchart TD
+    A["iskra"] --> B["load config.yaml<br/>+ repos.json"]
+    B --> C["filter repos<br/>--only / --exclude / --has-changes"]
+    C --> D{{"for each repo"}}
+    D --> E["read state<br/>branch, status, conflicts,<br/>ahead / behind"]
+    E --> F["merge config<br/>global + repo .iskra"]
+    F --> G{"--pull or<br/>auto_pull?"}
+    G -- yes --> H["stash if auto_stash<br/>pull<br/>pop stash"]
+    G -- no --> I
+    H --> I{"changes?"}
+    I -- no --> S(["skip"])
+    I -- yes --> J{"--dry-run?"}
+    J -- yes --> R(["report only"])
+    J -- no --> K["git add -A"]
+    K --> L{"message source"}
+    L -- "-m" --> M["your message"]
+    L -- AI enabled --> N["LLM from the diff"]
+    N -- fails --> O["heuristic message<br/>from file status"]
+    L -- "--no-ai-commit" --> O
+    M & N & O --> P["git commit"]
+    P --> Q{"--no-push?"}
+    Q -- no --> T["git push"]
+    Q -- yes --> U(["done"])
+    T --> U
+```
+
+Each repository produces a structured result (status, operations performed, commit hash,
+errors, timing), which Iskra prints as a summary or emits as JSON with `--json`. One failing
+repository never stops the batch.
+
+The internals are described in [docs/architecture.md](docs/architecture.md):
+
+| Package | Responsibility |
+| --- | --- |
+| `cmd/iskra` | Command routing and flags |
+| `internal/config` | Global config, per-repo `.iskra` overrides, tracked-repo list |
+| `internal/scanner` | Finding Git repositories on disk |
+| `internal/processor` | The per-repo pipeline above |
+| `internal/ai` | Commit messages from Ollama, OpenAI or Claude, plus the heuristic fallback |
+| `internal/batch` | Multi-repo commands: commit, status, sync, exec |
+| `internal/pulse` | Single-repo helpers |
+| `internal/remote` | Git and GitHub CLI wrappers |
+| `internal/info` | The `iskra info` repository card |
+| `internal/ui` | Terminal styling (Lip Gloss) |
+
+## Installation
+
+Download a prebuilt binary (no Go needed). It installs to `~/.local/bin`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NoamFav/Iskra/main/script/install.sh | bash
 ```
 
-**From source** (requires Go 1.24+):
+Or build from source (Go 1.24+):
+
 ```bash
-git clone https://github.com/NoamFav/Iskra
-cd Iskra && make install
+git clone https://github.com/NoamFav/Iskra.git
+cd Iskra
+make install
 ```
 
-**Manual** — grab a tarball from [Releases](https://github.com/NoamFav/Iskra/releases), extract, and move `iskra` to somewhere on your `$PATH`.
+Prebuilt archives for macOS and Linux (amd64 and arm64) are on the
+[Releases](https://github.com/NoamFav/Iskra/releases) page.
 
-### Dependencies
-
-| Tool | Required for |
-|------|-------------|
+| Dependency | Needed for |
+| --- | --- |
 | `git` | Everything |
-| `ollama` | AI commit messages (default provider) |
-| `gh` | `iskra gh`, `iskra clone` |
+| [Ollama](https://ollama.com) | AI messages with the default, local provider |
+| [`gh`](https://cli.github.com) | `iskra gh` and `iskra clone` |
+| [`git-filter-repo`](https://github.com/newren/git-filter-repo) | `iskra pulse filter` only |
 
-<p>
-<a name="quick-start"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-quick-start-night.svg"><img alt="quick start" src=".github/brand/section-quick-start-paper.svg" width="100%"></picture>
-</p>
+## Usage
 
-```bash
-iskra init        # 1. scan a directory and track all repos found
-iskra status      # 2. see what's going on across all of them
-iskra             # 3. commit and push everything
-```
-
-Iskra remembers your repos in `~/.config/iskra/repos.json` and processes them every time you run `iskra`.
-
-<p>
-<a name="commands"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-commands-night.svg"><img alt="commands" src=".github/brand/section-commands-paper.svg" width="100%"></picture>
-</p>
-
-```mermaid
-graph LR
-    root(("⚡ iskra")):::root
-
-    root --> MR["🗂 Multi-repo"]:::group
-    root --> TR["📌 Tracking"]:::group
-    root --> SR["📦 Single-repo"]:::group
-    root --> GH["🐙 GitHub"]:::group
-    root --> IN["🔍 Inspection"]:::group
-
-    MR --> mr1[status]:::cmd
-    MR --> mr2[sync-all]:::cmd
-    MR --> mr3[exec]:::cmd
-    MR --> mr4[scan]:::cmd
-
-    TR --> tr1[init]:::cmd
-    TR --> tr2[list / ls]:::cmd
-    TR --> tr3[add]:::cmd
-    TR --> tr4[remove / rm]:::cmd
-
-    SR --> pulse["pulse"]:::sub
-    pulse --> p1[switch]:::cmd
-    pulse --> p2[rebase]:::cmd
-    pulse --> p3[reset]:::cmd
-    pulse --> p4[stash]:::cmd
-    pulse --> p5[tag]:::cmd
-    pulse --> p6[fixup]:::cmd
-    pulse --> p7[blame]:::cmd
-    pulse --> p8[cherry-pick]:::cmd
-
-    GH --> gh1[gh info]:::cmd
-    GH --> gh2[gh open]:::cmd
-    GH --> gh3[gh prs]:::cmd
-    GH --> gh4[clone]:::cmd
-
-    IN --> in1[log]:::cmd
-    IN --> in2[diff]:::cmd
-    IN --> in3[info]:::cmd
-    IN --> in4[branches]:::cmd
-    IN --> in5[stash]:::cmd
-
-    classDef root fill:#86CFAC,color:#000,font-weight:bold,stroke:#86CFAC
-    classDef group fill:#2d333b,color:#cdd9e5,font-weight:bold,stroke:#444c56
-    classDef sub fill:#388bfd,color:#fff,font-weight:bold,stroke:#388bfd
-    classDef cmd fill:#1c2128,color:#adbac7,stroke:#373e47
-```
-
-### Multi-repo
+### First run
 
 ```bash
-iskra                        # Commit + push all repos (AI messages)
-iskra status                 # Status overview across all repos
-iskra sync-all               # Pull all tracked repos
-iskra exec "git fetch --all" # Run any command across all repos
-iskra scan [dir]             # Scan directory, show found repos
+iskra init ~/code    # find every Git repository under ~/code and track it
+iskra list           # check what is tracked
+iskra status         # overview: branch, changes, ahead/behind for each repo
+iskra                # commit and push everything that changed
 ```
 
-### Repo tracking
+### Everyday commands
+
+| Command | What it does |
+| --- | --- |
+| `iskra` | Commit and push every tracked repo that has changes |
+| `iskra --dry-run` | Show what would be committed, change nothing |
+| `iskra --pull --only api,web` | Pull, then commit, only in repos matching `api` or `web` |
+| `iskra -m "chore: bump deps"` | Use one message for every repo instead of generating them |
+| `iskra status` (`s`) | Status of every tracked repo |
+| `iskra sync-all` | Pull every tracked repo |
+| `iskra exec "git fetch --all"` | Run any command in every tracked repo |
+| `iskra check` | Untrack repos that no longer exist on disk |
+| `iskra info` | A repository card: languages, contributors, recent commits, upstream |
+| `iskra log`, `diff`, `branches`, `stash` | Readable views of the current repo |
+
+### Single-repo helpers: `iskra pulse`
+
+`iskra pulse` on its own commits and pushes the current repository. Its subcommands wrap Git
+operations that are easy to get wrong:
+
+| Command | What it does |
+| --- | --- |
+| `pulse switch [branch]` | Pick, create or delete a branch interactively |
+| `pulse rebase [base]` | Guided rebase, with recovery hints on conflict |
+| `pulse fixup [hash]` | Fold staged changes into an earlier commit |
+| `pulse cherry-pick [hash]` | Pick commits from an interactive log |
+| `pulse reset [file]` | Discard staged, unstaged or all changes |
+| `pulse tag [name]` | Create, list, delete and push tags |
+| `pulse blame <file>` | Per-line authorship, colored by author |
+| `pulse filter --remove-path <path>` | Remove a path from history (needs `git-filter-repo`) |
+
+### GitHub
 
 ```bash
-iskra init [dir]    # Scan a directory and track all found git repos
-iskra list          # List tracked repos  (alias: iskra ls)
-iskra add [path]    # Add a repo to tracking
-iskra remove [path] # Remove a repo  (alias: iskra rm)
+iskra gh info                                # stars, watchers, open issues
+iskra gh prs                                 # open pull requests
+iskra gh prs --open 42                       # open PR #42 in the browser
+iskra clone ~/code --filter-forks --only-stars 5
 ```
 
-### Single-repo — `iskra pulse`
-
-`pulse` with no subcommand commits + pushes the **current** repo only.
-
-```bash
-iskra pulse                  # Commit + push current repo
-iskra pulse -m "fix: typo"   # With manual message
-iskra pulse --no-push        # Commit only
-iskra pulse --pull           # Pull first, then commit + push
-iskra pulse --dry-run        # Preview, no changes
-```
+### Flags
 
 <details>
-<summary><b>pulse subcommands</b></summary>
+<summary><code>iskra help</code></summary>
 
-```bash
-iskra pulse reset [file]                 # Discard changes (staged, unstaged, or hard reset)
-iskra pulse switch [branch]             # Interactive branch picker / create / delete
-iskra pulse rebase [base]               # Guided rebase with conflict recovery hints
-iskra pulse cherry-pick [hash]          # Pick commits with interactive log view
-iskra pulse tag [name]                  # Create, list, delete, push tags
-iskra pulse fixup [hash]                # Squash staged changes into a past commit
-iskra pulse blame <file>                # Per-line author view with color-coded authors
-iskra pulse filter --remove-path <path> # Rewrite history (wraps git-filter-repo)
+```text
+GLOBAL FLAGS:
+    -h, -help       Show help
+    -v, -version    Show version
+    -json           Output JSON
+    -minimal        No colors or icons
+    -q, -quiet      Quiet mode
+
+COMMIT FLAGS:  (for 'iskra commit' or 'iskra' directly)
+    -status-only    Only show status
+    -pull-only      Only pull
+    -pull           Pull before commit
+    -no-push        Don't push after commit
+    -no-ai-commit   Don't use AI
+    -m <message>    Custom commit message
+    -dry-run        Preview without changes
+
+FILTER FLAGS:  (for 'iskra commit' or 'iskra' directly)
+    -only <pattern>    Only include matching repos
+    -exclude <pattern> Exclude matching repos
+    -c, -has-changes   Only repos with changes
 ```
+
+Flags accept one or two dashes (`-dry-run` or `--dry-run`). Run `iskra <command> -h` for
+command-specific flags, or `man ./iskra.1`.
 
 </details>
 
-### GitHub integration
+### Scripting
 
-> Requires the [`gh`](https://cli.github.com/) CLI.
-
-```bash
-iskra gh info           # Repo stats, stars, watchers, open issues
-iskra gh open           # Open repo in browser
-iskra gh prs            # List open pull requests
-iskra gh prs --open 42  # Open PR #42 in browser
-
-iskra clone [dir]                        # Bulk-clone all your GitHub repos
-iskra clone --filter-forks --only-stars 5
-```
-
-### Inspection
+`--json` turns any batch command into machine-readable output, and `--minimal` drops colors
+and icons for CI logs:
 
 ```bash
-iskra log       # Pretty git log for current repo
-iskra diff      # Colored diff
-iskra info      # Rich repo stats (language breakdown, recent commits, upstream)
-iskra branches  # List all branches  (alias: iskra br)
-iskra stash     # Stash management (list / push / pop)
+iskra status --json | jq -r '.results[] | select(.changes.total > 0) | .name'
 ```
 
-<p>
-<a name="flags"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-flags-night.svg"><img alt="flags" src=".github/brand/section-flags-paper.svg" width="100%"></picture>
-</p>
+## AI commit messages
 
-| Flag | Description |
-|------|-------------|
-| `--dry-run` | Preview — no changes made |
-| `--no-ai-commit` | Skip AI, prompt for message |
-| `-m "message"` | Use this commit message |
-| `--pull` | Pull before committing |
-| `--no-push` | Commit but don't push |
-| `--only a,b` | Filter to specific repos by name |
-| `--json` | Output JSON |
-| `--minimal` | No colors or icons (good for CI) |
-| `-q` | Quiet mode |
+```mermaid
+sequenceDiagram
+    participant I as Iskra
+    participant G as git
+    participant L as LLM provider
+    I->>G: git diff --cached
+    G-->>I: diff
+    I->>I: truncate to 8,000 characters
+    I->>L: prompt: Conventional Commits rules + branch + diff
+    alt success
+        L-->>I: feat(auth): add refresh token rotation
+        I->>I: strip code fences and quotes
+    else provider down or error
+        I->>I: heuristic message from the file list
+    end
+    I->>G: git commit -m "…"
+```
 
-<p>
-<a name="configuration"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-configuration-night.svg"><img alt="configuration" src=".github/brand/section-configuration-paper.svg" width="100%"></picture>
-</p>
+The prompt asks for a single Conventional Commit subject line, chooses the type from what the
+diff actually does (`feat`, `fix`, `refactor`, `docs`, `chore`…), and tells the model to
+describe only what it can see if the diff was truncated.
 
-Config lives at `~/.config/iskra/config.yaml`. Created automatically on first run.
+| Provider | Setup | Default model |
+| --- | --- | --- |
+| Ollama (default, local) | `ollama pull mistral` | `mistral` |
+| OpenAI | `ai_provider: openai`, `OPENAI_API_KEY` | `gpt-4o-mini` |
+| Claude | `ai_provider: claude`, `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` |
+
+If generation fails, Iskra writes a message from the changed files instead (for example
+`docs: update README.md`, `chore: update config files` or `feat: add parser.go`) and tells
+you why the AI step failed. A commit is never blocked by the model.
+
+## Configuration
+
+The global config is created on first run at `~/.config/iskra/config.yaml`. Every key is
+optional:
 
 ```yaml
-# Where to scan for repos during `iskra init`
-base_dir: ~/code
-max_depth: 3
+# Discovery
+base_dir: ~/projects          # default directory for `iskra init`
+max_depth: 3                  # how deep to look for repositories
+exclude_patterns: []
+only_patterns: []
 
-# Git behaviour
+# Git behavior
+default_branch: main
+protected_branches: [main, master, production]   # flagged in output
 auto_pull: true
 auto_push: true
-default_branch: main
-protected_branches: [main, master, production]
+auto_stash: false             # stash before pulling, pop afterward
 
-# AI commits
+# Commit messages
 use_ai_commit: true
 commit_message_style: conventional   # or: simple
-ai_provider: ollama                  # or: openai, claude
-
-# Ollama (default — runs locally, free)
+ai_provider: ollama                  # ollama, openai or claude
 ollama_url: http://127.0.0.1:11434
 ollama_model: mistral
 
-# OpenAI (set OPENAI_API_KEY env var or add key here)
-# ai_provider: openai
-# openai_model: gpt-4o-mini
-
-# Claude (set ANTHROPIC_API_KEY env var or add key here)
-# ai_provider: claude
-# claude_model: claude-opus-4-5
-
-# Safety
-require_confirmation: true
-dry_run: false
+# Output
+use_rich_ui: true
+verbose: false
 ```
 
-### Per-repo overrides
+### Per-repository overrides
 
-Drop a `.iskra.yaml` in any repo root to override global settings for that repo:
+A `.iskra` file at a repository root marks it as tracked and overrides global settings for
+that repository only:
 
 ```yaml
 auto_push: false
 use_ai_commit: false
-protected_branches: [main, develop, staging]
+protected_branches: [main, develop]
+commit_message_style: simple
 ```
 
-<p>
-<a name="ai-commit-messages"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-ai-commit-messages-night.svg"><img alt="ai commit messages" src=".github/brand/section-ai-commit-messages-paper.svg" width="100%"></picture>
-</p>
-
-Iskra generates [Conventional Commits](https://www.conventionalcommits.org/) from your diff:
-
-```
-feat(auth): add OAuth2 login flow
-fix(api): handle nil pointer in user handler
-docs: update installation instructions
-refactor(db): simplify query builder
-```
-
-| Provider | Setup |
-|----------|-------|
-| **Ollama** (default, local) | `brew install ollama && ollama pull mistral` |
-| **OpenAI** | `export OPENAI_API_KEY=sk-...` |
-| **Claude** | `export ANTHROPIC_API_KEY=sk-ant-...` |
-
-If AI generation fails for any reason, Iskra falls back to a smart conventional message generated from the diff — it never blocks you.
-
-<p>
-<a name="building-from-source"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-building-from-source-night.svg"><img alt="building from source" src=".github/brand/section-building-from-source-paper.svg" width="100%"></picture>
-</p>
+## Development
 
 ```bash
-git clone https://github.com/NoamFav/Iskra
-cd Iskra
-
-make build      # → bin/iskra
-make install    # build + copy to ~/.local/bin/iskra
-make lint       # go vet ./...
+make build    # bin/iskra, version injected from the Git tag
+make lint     # go vet
+make help     # every target
 ```
 
-The version string is injected from the git tag at build time via `-ldflags "-X main.version=..."`.
+CI runs `go vet`, a build and a smoke test on every push. Tagging `v*` builds and publishes
+binaries for four platforms. See [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[changelog](CHANGELOG.md).
 
-<p>
-<a name="contributing"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-contributing-night.svg"><img alt="contributing" src=".github/brand/section-contributing-paper.svg" width="100%"></picture>
-</p>
+## License
 
-1. Fork → branch → commit (use `iskra pulse` 😄)
-2. Code is pure Go in `go-core/`. Follow standard Go conventions (`gofmt`, `go vet`).
-3. PRs welcome — check [open issues](https://github.com/NoamFav/Iskra/issues) for ideas.
-
-<p>
-<a name="acknowledgements"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-acknowledgements-night.svg"><img alt="acknowledgements" src=".github/brand/section-acknowledgements-paper.svg" width="100%"></picture>
-</p>
-
-- [onefetch](https://github.com/o2sh/onefetch) — inspiration for `iskra info`
-- [Lip Gloss](https://github.com/charmbracelet/lipgloss) — terminal styling
-- [Ollama](https://ollama.ai) — local AI runtime
-- [gh](https://cli.github.com/) — GitHub CLI integration
-
-<p>
-<a name="license"></a>
-<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-license-night.svg"><img alt="license" src=".github/brand/section-license-paper.svg" width="100%"></picture>
-</p>
-
-Apache 2.0 — see [LICENSE](LICENSE).
-
-<div align="center">
-Made with ⚡ by <a href="https://github.com/NoamFav">NoamFav</a>
-</div>
-
-<br>
-
-<a href="https://nf-software.com">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/brand/footer-night.svg">
-  <img alt="NF Software" src=".github/brand/footer-paper.svg" width="100%">
-</picture>
-</a>
+Licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for copyright
+and attribution notices.
